@@ -90,8 +90,9 @@ def excluido(titulo: str) -> bool:
     if any(normaliza(p) in t for p in CFG.get("excluir_se_tiver", [])):
         return True
     volt = (CFG.get("voltagem") or "").upper()
-    tem_127 = re.search(r"(?<!\d)(110|127)\s*v", t)
-    tem_220 = re.search(r"(?<!\d)220\s*v", t)
+    # código Samsung: ...AZ = 127V, ...BZ = 220V (ex.: WD13FG6B34BXAZ / WD13FG6B34BXBZ)
+    tem_127 = re.search(r"(?<!\d)(110|127)\s*v|b34b[xbe]/?az", t)
+    tem_220 = re.search(r"(?<!\d)220\s*v|b34b[xbe]/?bz", t)
     if volt.startswith(("110", "127")) and tem_220 and not tem_127:
         return True
     if volt.startswith("220") and tem_127 and not tem_220:
@@ -296,21 +297,27 @@ def blocos_json(texto: str):
 def varre_texto(texto: str, fonte: dict) -> list[Oferta]:
     """Plano B quando a página não tem dados estruturados: preço logo após o nome."""
     t = html.unescape(texto).replace('\\"', '"').replace("\\u002F", "/")
+    t = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", t))
     padrao = re.compile("|".join(re.escape(k) for k in CFG["palavras_chave"]), re.I)
+    proximo_produto = re.compile(r'"(?:title|name|productName)"\s*:', re.I)
     preco_re = re.compile(
         r'"(?:price|bestPrice|salePrice|lowPrice|spotPrice|priceValue)"\s*:\s*"?(\d[\d.,]*)'
-        r"|R\$\s*(\d{1,3}(?:\.\d{3})+(?:,\d{2})?)", re.I)
+        r'|"current_price"\s*:\s*\{\s*"value"\s*:\s*(\d+(?:\.\d+)?)'
+        r"|R\$\s*(\d{1,3}(?:\.\d{3})+(?:\s*,\s*\d{2})?)", re.I)
     ofertas = []
-    for m in list(padrao.finditer(t))[:15]:
-        trecho = re.sub(r"<[^>]+>", " ", t[max(0, m.start() - 150): m.end() + 150])
+    for m in list(padrao.finditer(t))[:30]:
+        trecho = t[max(0, m.start() - 150): m.end() + 150]
         if excluido(trecho) or not cor_ok(trecho):
             continue
-        for pm in preco_re.finditer(t, m.end(), m.end() + 1500):
-            p = no_intervalo(pm.group(1) or pm.group(2))
-            if p is not None:
-                ofertas.append(Oferta(f"{CFG['produto']} ({fonte['nome']})", p, fonte["nome"],
-                                      fonte["url"], fonte["nome"], estimado=True))
-                break
+        fim = m.end() + 1200
+        prox = proximo_produto.search(t, m.end() + 20, fim)
+        if prox:
+            fim = prox.start()
+        precos = [p for pm in preco_re.finditer(t, m.end(), fim)
+                  if (p := no_intervalo(next(g for g in pm.groups() if g).replace(" ", ""))) is not None]
+        if precos:
+            ofertas.append(Oferta(f"{CFG['produto']} ({fonte['nome']})", min(precos), fonte["nome"],
+                                  fonte["url"], fonte["nome"], estimado=True))
     return ofertas
 
 
@@ -347,6 +354,10 @@ def consulta_fonte(fonte: dict) -> list[Oferta]:
         ofertas = varre_texto(texto, fonte)
     if not ofertas and not bate_modelo(texto):
         raise RuntimeError("a página não menciona o modelo (busca vazia ou layout mudou)")
+    if fonte.get("trocar_link"):
+        de, para = fonte["trocar_link"]
+        for o in ofertas:
+            o.url = o.url.replace(de, para)
     return ofertas
 
 
@@ -498,10 +509,15 @@ def main() -> int:
         SIMULAR, modo = True, "teste"
     agora = datetime.now(BRT)
     estado = carrega_estado()
+    # mudou modelo/cor/voltagem? o histórico antigo não vale mais para comparar quedas
+    filtro = json.dumps([CFG["palavras_chave"], CFG.get("cores_aceitas"), CFG.get("voltagem")])
+    if estado.get("filtro") != filtro:
+        estado = {"filtro": filtro}
 
     ofertas: list[Oferta] = []
     falhas: list[str] = []
-    for i, fonte in enumerate(CFG["fontes"]):
+    fontes = [f for f in CFG["fontes"] if f.get("ativa", True)]
+    for i, fonte in enumerate(fontes):
         if i:
             time.sleep(random.uniform(1.5, 4))
         try:
@@ -527,8 +543,7 @@ def main() -> int:
     else:
         estado["falhas_seguidas"] = estado.get("falhas_seguidas", 0) + 1
 
-    lidas = len(CFG["fontes"]) - len(falhas)
-    rodape = [f"Lojas lidas: {lidas}/{len(CFG['fontes'])}"]
+    rodape = [f"Páginas lidas: {len(fontes) - len(falhas)}/{len(fontes)}"]
     hoje = agora.date().isoformat()
 
     if modo == "teste":
