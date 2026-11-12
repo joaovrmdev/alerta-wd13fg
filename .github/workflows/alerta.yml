@@ -48,6 +48,7 @@ jobs:
           DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
           WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
           WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
+          DEPURAR: ${{ github.event_name == 'pull_request' && '1' || '' }}
 
       - name: Guarda o histórico de preços
         if: always() && github.event_name != 'pull_request'

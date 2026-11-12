@@ -301,7 +301,7 @@ def varre_texto(texto: str, fonte: dict) -> list[Oferta]:
     padrao = re.compile("|".join(re.escape(k) for k in CFG["palavras_chave"]), re.I)
     proximo_produto = re.compile(r'"(?:title|name|productName)"\s*:', re.I)
     preco_re = re.compile(
-        r'"(?:price|bestPrice|salePrice|lowPrice|spotPrice|priceValue)"\s*:\s*"?(\d[\d.,]*)'
+        r'"(?:price|bestPrice|salePrice|lowPrice|spotPrice|priceValue|priceAmount)"\s*:\s*"?(\d[\d.,]*)'
         r'|"current_price"\s*:\s*\{\s*"value"\s*:\s*(\d+(?:\.\d+)?)'
         r"|R\$\s*(\d{1,3}(?:\.\d{3})+(?:\s*,\s*\d{2})?)", re.I)
     ofertas = []
@@ -325,33 +325,82 @@ class Bloqueado(Exception):
     pass
 
 
-def baixa(url: str) -> str:
+DEPURAR = bool(os.getenv("DEPURAR"))
+IMITACOES = ["chrome", "safari", "firefox"] if IMITAR else [None]
+
+
+def baixa(url: str) -> tuple[str, str]:
+    """Baixa a página (seguindo redirecionamentos). Se a loja bloquear, tenta com outro navegador."""
     ultimo_erro = None
-    for tentativa in range(2):
+    for tentativa, imitar in enumerate(IMITACOES):
         try:
-            r = navegador.get(url, headers=CABECALHOS, timeout=30, **IMITAR)
+            extra = {"impersonate": imitar} if imitar else {}
+            r = navegador.get(url, headers=CABECALHOS, timeout=30, allow_redirects=True, **extra)
+            texto = r.text
             if r.status_code in (403, 429, 503):
+                if DEPURAR:
+                    print(f"          [diag] {imitar}: HTTP {r.status_code} em {r.url} :: {resumo_html(texto)}")
                 raise Bloqueado(f"HTTP {r.status_code} (a loja bloqueou o robô)")
             if r.status_code >= 400:
                 raise RuntimeError(f"HTTP {r.status_code}")
-            texto = r.text
             baixo = texto[:20000].lower()
-            if not bate_modelo(texto) and any(s in baixo for s in SINAIS_DE_BLOQUEIO):
+            if not bate_modelo(texto) and any(x in baixo for x in SINAIS_DE_BLOQUEIO):
+                if DEPURAR:
+                    print(f"          [diag] {imitar}: anti-robô em {r.url} :: {resumo_html(texto)}")
                 raise Bloqueado("página de verificação anti-robô")
-            return texto
+            return texto, str(r.url)
         except Exception as e:  # noqa: BLE001
             ultimo_erro = e
-            time.sleep(3 + tentativa * 4)
+            time.sleep(2 + tentativa * 3)
     raise ultimo_erro  # type: ignore[misc]
 
 
+def resumo_html(texto: str, n: int = 220) -> str:
+    titulo = re.search(r"<title[^>]*>(.*?)</title>", texto, re.S | re.I)
+    corpo = " ".join(re.sub(r"<[^>]+>", " ", re.sub(r"(?is)<(script|style).*?</\1>", " ", texto)).split())
+    return f"title={html.unescape(titulo.group(1).strip())[:80]!r} corpo={html.unescape(corpo)[:n]!r}" if titulo \
+        else f"corpo={html.unescape(corpo)[:n]!r}"
+
+
+def amazon(texto: str, fonte: dict, url_final: str) -> list[Oferta]:
+    """Página de produto da Amazon: título em #productTitle e preço no bloco principal."""
+    m = re.search(r'id="productTitle"[^>]*>(.*?)</span>', texto, re.S)
+    if not m:
+        return []
+    titulo = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", m.group(1))).split())
+    if not (bate_modelo(titulo) and cor_ok(titulo)) or excluido(titulo):
+        if DEPURAR:
+            print(f"          [diag] título fora do filtro (cor/voltagem): {titulo[:120]!r}")
+        return []
+    for marcador in ("corePriceDisplay_desktop_feature_div", "corePrice_feature_div", "apex_desktop",
+                     "corePrice_desktop", "priceblock_ourprice", "price_inside_buybox"):
+        i = texto.find(marcador)
+        if i < 0:
+            continue
+        trecho = html.unescape(texto[i:i + 25000])
+        pm = re.search(r'class="a-offscreen">\s*R\$\s*([\d.]+,\d{2})', trecho) or \
+            re.search(r'"priceAmount"\s*:\s*([\d.]+)', trecho)
+        if pm:
+            p = no_intervalo(pm.group(1))
+            if p is not None:
+                return [Oferta(titulo[:120], p, "Amazon", url_final, fonte["nome"])]
+    if DEPURAR:
+        print("          [diag] Amazon: achei o título mas não o preço principal (sem estoque?)")
+    return []
+
+
 def consulta_fonte(fonte: dict) -> list[Oferta]:
-    texto = baixa(fonte["url"])
+    texto, url_final = baixa(fonte["url"])
     ofertas: list[Oferta] = []
-    for bloco in blocos_json(texto):
-        varre(bloco, fonte, ofertas)
+    if "amazon.com" in url_final:
+        ofertas = amazon(texto, fonte, url_final)
+    if not ofertas:
+        for bloco in blocos_json(texto):
+            varre(bloco, fonte, ofertas)
     if not ofertas:
         ofertas = varre_texto(texto, fonte)
+    if DEPURAR and not ofertas:
+        diagnostico(texto, url_final)
     if not ofertas and not bate_modelo(texto):
         raise RuntimeError("a página não menciona o modelo (busca vazia ou layout mudou)")
     if fonte.get("trocar_link"):
@@ -359,6 +408,19 @@ def consulta_fonte(fonte: dict) -> list[Oferta]:
         for o in ofertas:
             o.url = o.url.replace(de, para)
     return ofertas
+
+
+def diagnostico(texto: str, url_final: str) -> None:
+    """Só nos testes de pull request: mostra no log por que uma página não rendeu preço."""
+    blocos = list(blocos_json(texto))
+    print(f"          [diag] url final: {url_final} | {len(texto)} bytes | {len(blocos)} blocos JSON")
+    print(f"          [diag] {resumo_html(texto, 160)}")
+    limpo = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", texto)).split())
+    padrao = re.compile("|".join(re.escape(k) for k in CFG["palavras_chave"]), re.I)
+    for m in list(padrao.finditer(limpo))[:4]:
+        print(f"          [diag] ...{limpo[max(0, m.start() - 120): m.end() + 260]!r}")
+    for m in list(re.finditer(r'"[A-Za-z_]*(?:price|preco)[A-Za-z_]*"\s*:', texto, re.I))[:3]:
+        print(f"          [diag] chave de preço: {texto[m.start(): m.start() + 140]!r}")
 
 
 def sem_repetidas(ofertas: list[Oferta]) -> list[Oferta]:
@@ -517,6 +579,8 @@ def main() -> int:
     ofertas: list[Oferta] = []
     falhas: list[str] = []
     fontes = [f for f in CFG["fontes"] if f.get("ativa", True)]
+    if DEPURAR:  # nos pull requests, testa também as desativadas para ver se voltaram a funcionar
+        fontes += [dict(f, nome=f["nome"] + " [desativada]") for f in CFG["fontes"] if not f.get("ativa", True)]
     for i, fonte in enumerate(fontes):
         if i:
             time.sleep(random.uniform(1.5, 4))
