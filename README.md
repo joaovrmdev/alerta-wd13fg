@@ -36,7 +36,7 @@ Telegram com os preços atuais e quais lojas ele conseguiu ler.
 |---|---|
 | `preco_alvo` | avisa quando o menor preço ficar igual ou abaixo disso |
 | `cores_aceitas` | só considera anúncios que citam uma dessas cores (inox/black); `[]` aceita todas |
-| `voltagem` | `"127V"` ignora anúncios que dizem só 220V (e vice-versa); `null` aceita tudo |
+| `voltagem` | `"220V"` ignora anúncios que dizem só 127V/110V (e vice-versa); `null` aceita tudo |
 | `avisar_queda_percentual` | avisa quedas bruscas mesmo acima do alvo; `null` desliga |
 | `repetir_alerta_horas` | se o preço continuar baixo, repete o aviso a cada X horas (ou na hora, se baixar mais) |
 | `resumo_diario_hora` | hora do resumo diário (horário de Brasília); `null` desliga |

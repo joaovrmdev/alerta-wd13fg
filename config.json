@@ -3,7 +3,7 @@
   "palavras_chave": ["WD13FG"],
   "cores_aceitas": ["inox", "black", "preta", "preto", "B34BX", "B34BB"],
   "preco_alvo": 3979.9,
-  "voltagem": "127V",
+  "voltagem": "220V",
   "avisar_queda_percentual": 7,
   "repetir_alerta_horas": 24,
   "resumo_diario_hora": 9,

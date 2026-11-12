@@ -90,8 +90,9 @@ def excluido(titulo: str) -> bool:
     if any(normaliza(p) in t for p in CFG.get("excluir_se_tiver", [])):
         return True
     volt = (CFG.get("voltagem") or "").upper()
-    tem_127 = re.search(r"(?<!\d)(110|127)\s*v", t)
-    tem_220 = re.search(r"(?<!\d)220\s*v", t)
+    # código Samsung: ...AZ = 127V, ...BZ = 220V (ex.: WD13FG6B34BXAZ / WD13FG6B34BXBZ)
+    tem_127 = re.search(r"(?<!\d)(110|127)\s*v|b34b[xbe]/?az", t)
+    tem_220 = re.search(r"(?<!\d)220\s*v|b34b[xbe]/?bz", t)
     if volt.startswith(("110", "127")) and tem_220 and not tem_127:
         return True
     if volt.startswith("220") and tem_127 and not tem_220:
@@ -508,6 +509,10 @@ def main() -> int:
         SIMULAR, modo = True, "teste"
     agora = datetime.now(BRT)
     estado = carrega_estado()
+    # mudou modelo/cor/voltagem? o histórico antigo não vale mais para comparar quedas
+    filtro = json.dumps([CFG["palavras_chave"], CFG.get("cores_aceitas"), CFG.get("voltagem")])
+    if estado.get("filtro") != filtro:
+        estado = {"filtro": filtro}
 
     ofertas: list[Oferta] = []
     falhas: list[str] = []
