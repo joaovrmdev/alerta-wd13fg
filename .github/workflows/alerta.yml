@@ -2,7 +2,9 @@ name: Alerta WD13FG
 
 on:
   schedule:
-    - cron: "*/20 * * * *"   # a cada 20 minutos (o GitHub às vezes atrasa alguns minutos)
+    # a cada 20 minutos, fora dos minutos "redondos": o GitHub atrasa ou pula
+    # agendamentos no começo de cada hora, quando a fila está cheia
+    - cron: "7,27,47 * * * *"
   pull_request:            # nos pull requests só simula (não manda mensagem)
   workflow_dispatch:
     inputs:
