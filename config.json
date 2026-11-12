@@ -20,7 +20,7 @@
     {"nome": "Carrefour", "url": "https://www.carrefour.com.br/api/catalog_system/pub/products/search?ft=wd13fg", "ativa": false},
     {"nome": "Magalu", "url": "https://www.magazineluiza.com.br/busca/wd13fg/", "ativa": false},
     {"nome": "Mercado Livre", "url": "https://lista.mercadolivre.com.br/wd13fg", "ativa": false},
-    {"nome": "Amazon (produto)", "url": "https://a.co/d/0fQvNqJc"},
+    {"nome": "Amazon (inox 220V)", "url": "https://www.amazon.com.br/dp/B0FWMTLMR4"},
     {"nome": "Casas Bahia", "url": "https://www.casasbahia.com.br/wd13fg/b", "ativa": false},
     {"nome": "Casas Bahia (black 127V)", "url": "https://www.casasbahia.com.br/lava-e-seca-smart-samsung-ai-control-wd13fg-black-13kg-127v/p/1576844771", "ativa": false},
     {"nome": "Amazon (busca)", "url": "https://www.amazon.com.br/s?k=wd13fg"}

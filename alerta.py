@@ -383,7 +383,8 @@ def amazon(texto: str, fonte: dict, url_final: str) -> list[Oferta]:
         if pm:
             p = no_intervalo(pm.group(1))
             if p is not None:
-                return [Oferta(titulo[:120], p, "Amazon", url_final, fonte["nome"])]
+                url_limpa = re.sub(r"(/dp/[A-Z0-9]{10}).*", r"\1", url_final)
+                return [Oferta(titulo[:120], p, "Amazon", url_limpa, fonte["nome"])]
     if DEPURAR:
         print("          [diag] Amazon: achei o título mas não o preço principal (sem estoque?)")
     return []
