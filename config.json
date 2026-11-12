@@ -12,14 +12,16 @@
   "fontes": [
     {"nome": "Buscapé (inox)", "url": "https://www.buscape.com.br/lavadora-roupas/lava-e-seca-samsung-13kg-eco-bubble-smart-ai-control-wd13fg-wd13fg6b34bx-cor-inox"},
     {"nome": "Zoom (inox)", "url": "https://www.zoom.com.br/lavadora-roupas/lava-e-seca-samsung-13kg-eco-bubble-smart-ai-control-wd13fg-wd13fg6b34bx-cor-inox"},
-    {"nome": "Samsung Shop", "url": "https://shop.samsung.com/br/api/catalog_system/pub/products/search?ft=wd13fg"},
+    {"nome": "Buscapé (busca)", "url": "https://www.buscape.com.br/busca/wd13fg"},
+    {"nome": "Zoom (busca)", "url": "https://www.zoom.com.br/busca/wd13fg"},
+    {"nome": "Samsung Shop", "url": "https://shop.samsung.com/br/api/catalog_system/pub/products/search?ft=wd13fg", "trocar_link": ["https://shop.samsung.com.br/", "https://shop.samsung.com/br/"]},
     {"nome": "Samsung Shop (página)", "url": "https://shop.samsung.com/br/lava-seca-smart-samsung-ai-control-wd13fg-inox-13kg/p"},
     {"nome": "Fast Shop", "url": "https://site.fastshop.com.br/api/catalog_system/pub/products/search?ft=wd13fg"},
-    {"nome": "Carrefour", "url": "https://www.carrefour.com.br/api/catalog_system/pub/products/search?ft=wd13fg"},
-    {"nome": "Magalu", "url": "https://www.magazineluiza.com.br/busca/wd13fg/"},
+    {"nome": "Carrefour", "url": "https://www.carrefour.com.br/api/catalog_system/pub/products/search?ft=wd13fg", "ativa": false},
+    {"nome": "Magalu", "url": "https://www.magazineluiza.com.br/busca/wd13fg/", "ativa": false},
     {"nome": "Mercado Livre", "url": "https://lista.mercadolivre.com.br/wd13fg"},
-    {"nome": "Casas Bahia", "url": "https://www.casasbahia.com.br/wd13fg/b"},
-    {"nome": "Casas Bahia (black 127V)", "url": "https://www.casasbahia.com.br/lava-e-seca-smart-samsung-ai-control-wd13fg-black-13kg-127v/p/1576844771"},
-    {"nome": "Amazon", "url": "https://www.amazon.com.br/s?k=wd13fg"}
+    {"nome": "Casas Bahia", "url": "https://www.casasbahia.com.br/wd13fg/b", "ativa": false},
+    {"nome": "Casas Bahia (black 127V)", "url": "https://www.casasbahia.com.br/lava-e-seca-smart-samsung-ai-control-wd13fg-black-13kg-127v/p/1576844771", "ativa": false},
+    {"nome": "Amazon", "url": "https://www.amazon.com.br/s?k=wd13fg", "ativa": false}
   ]
 }
