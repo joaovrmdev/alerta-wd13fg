@@ -389,11 +389,38 @@ def amazon(texto: str, fonte: dict, url_final: str) -> list[Oferta]:
     return []
 
 
+def amazon_busca(texto: str, fonte: dict) -> list[Oferta]:
+    """Busca da Amazon: lê cada anúncio separado (título + preço principal do card)."""
+    ofertas = []
+    for card in re.split(r'data-component-type="s-search-result"', texto)[1:]:
+        card = html.unescape(card[:40000])
+        titulos = re.findall(r'<h2[^>]*aria-label="([^"]+)"', card) or \
+            [re.sub(r"<[^>]+>", " ", t) for t in re.findall(r"<h2[^>]*>(.*?)</h2>", card, re.S)]
+        titulo = " ".join(" ".join(titulos).split())
+        if not titulo or not bate_modelo(titulo):
+            continue
+        pm = re.search(r'class="a-offscreen">\s*R\$\s*([\d.]+,\d{2})', card)
+        p = no_intervalo(pm.group(1)) if pm else None
+        filtro_ok = cor_ok(titulo) and not excluido(titulo)
+        if DEPURAR:
+            print(f"          [diag] card: {'ok ' if filtro_ok else 'fora'} {brl(p) if p else 'sem preço'} | {titulo[:110]}")
+        if p is None or not filtro_ok:
+            continue
+        asin = re.search(r"/dp/([A-Z0-9]{10})", card)
+        url = f"https://www.amazon.com.br/dp/{asin.group(1)}" if asin else fonte["url"]
+        ofertas.append(Oferta(titulo[:120], p, "Amazon", url, fonte["nome"]))
+    return ofertas
+
+
 def consulta_fonte(fonte: dict) -> list[Oferta]:
     texto, url_final = baixa(fonte["url"])
     ofertas: list[Oferta] = []
     if "amazon.com" in url_final:
-        ofertas = amazon(texto, fonte, url_final)
+        ofertas = amazon_busca(texto, fonte) if "s-search-result" in texto else amazon(texto, fonte, url_final)
+        if not ofertas:  # a página da Amazon foi lida, mas nada passou no filtro: não chutar preço
+            if not bate_modelo(texto):
+                raise RuntimeError("a página não menciona o modelo (busca vazia ou layout mudou)")
+            return []
     if not ofertas:
         for bloco in blocos_json(texto):
             varre(bloco, fonte, ofertas)
