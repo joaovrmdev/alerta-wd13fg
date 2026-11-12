@@ -1,0 +1,57 @@
+name: Alerta WD13FG
+
+on:
+  schedule:
+    - cron: "*/20 * * * *"   # a cada 20 minutos (o GitHub às vezes atrasa alguns minutos)
+  pull_request:            # nos pull requests só simula (não manda mensagem)
+  workflow_dispatch:
+    inputs:
+      modo:
+        description: "teste = manda mensagem agora | verificar = só avisa se estiver em promoção"
+        type: choice
+        options: [teste, verificar]
+        default: teste
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alerta-wd13fg
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Recupera o histórico de preços
+        uses: actions/cache/restore@v4
+        with:
+          path: estado
+          key: estado-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: estado-
+
+      - name: Verifica os preços
+        run: python alerta.py "${{ github.event_name == 'pull_request' && 'simulacao' || inputs.modo || 'verificar' }}"
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
+
+      - name: Guarda o histórico de preços
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/cache/save@v4
+        with:
+          path: estado
+          key: estado-${{ github.run_id }}-${{ github.run_attempt }}

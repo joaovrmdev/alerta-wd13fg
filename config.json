@@ -1,0 +1,25 @@
+{
+  "produto": "Samsung Lava e Seca WD13FG (inox/black)",
+  "palavras_chave": ["WD13FG"],
+  "cores_aceitas": ["inox", "black", "preta", "preto", "B34BX", "B34BB"],
+  "preco_alvo": 3979.9,
+  "voltagem": "127V",
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 24,
+  "resumo_diario_hora": 9,
+  "faixa_de_preco_valida": [2500, 15000],
+  "excluir_se_tiver": ["branca", "branco", "white", "B34BE", "capa", "gaveta", "dispenser", "kit", "suporte", "pes ", "mangueira", "placa", "peca", "usado", "usada", "vitrine", "seminov", "recondicionad", "mostruario", "avariad"],
+  "fontes": [
+    {"nome": "Buscapé (inox)", "url": "https://www.buscape.com.br/lavadora-roupas/lava-e-seca-samsung-13kg-eco-bubble-smart-ai-control-wd13fg-wd13fg6b34bx-cor-inox"},
+    {"nome": "Zoom (inox)", "url": "https://www.zoom.com.br/lavadora-roupas/lava-e-seca-samsung-13kg-eco-bubble-smart-ai-control-wd13fg-wd13fg6b34bx-cor-inox"},
+    {"nome": "Samsung Shop", "url": "https://shop.samsung.com/br/api/catalog_system/pub/products/search?ft=wd13fg"},
+    {"nome": "Samsung Shop (página)", "url": "https://shop.samsung.com/br/lava-seca-smart-samsung-ai-control-wd13fg-inox-13kg/p"},
+    {"nome": "Fast Shop", "url": "https://site.fastshop.com.br/api/catalog_system/pub/products/search?ft=wd13fg"},
+    {"nome": "Carrefour", "url": "https://www.carrefour.com.br/api/catalog_system/pub/products/search?ft=wd13fg"},
+    {"nome": "Magalu", "url": "https://www.magazineluiza.com.br/busca/wd13fg/"},
+    {"nome": "Mercado Livre", "url": "https://lista.mercadolivre.com.br/wd13fg"},
+    {"nome": "Casas Bahia", "url": "https://www.casasbahia.com.br/wd13fg/b"},
+    {"nome": "Casas Bahia (black 127V)", "url": "https://www.casasbahia.com.br/lava-e-seca-smart-samsung-ai-control-wd13fg-black-13kg-127v/p/1576844771"},
+    {"nome": "Amazon", "url": "https://www.amazon.com.br/s?k=wd13fg"}
+  ]
+}
