@@ -526,6 +526,8 @@ def envia(cabecalho: str, ofertas: list[Oferta], notas: list[str]) -> list[str]:
             enviados.append("WhatsApp")
         except Exception as e:  # noqa: BLE001
             print(f"[erro] WhatsApp: {e}")
+    if enviados:
+        print(f"[enviado] {', '.join(enviados)}: {cabecalho}")
     if not (token and chat) and not webhook and not (fone and apikey):
         print("\n[simulação] nenhum canal configurado; a mensagem seria:\n")
         print(monta_mensagem(cabecalho, ofertas, notas, "whatsapp"))
@@ -652,6 +654,8 @@ def main() -> int:
     elif estado["falhas_seguidas"] == 3:
         envia("⚠️ O alerta não conseguiu ler nenhuma loja nas últimas 3 verificações",
               [], falhas)
+    else:
+        print("[sem aviso] preço acima do alvo, sem queda brusca, e o resumo de hoje já foi enviado")
 
     salva_estado(estado)
     return 0
