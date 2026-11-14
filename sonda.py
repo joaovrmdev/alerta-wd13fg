@@ -1,4 +1,4 @@
-"""Sonda temporária (só no PR de testes): acha a API de busca/produto do Shopping do Inter."""
+"""Sonda temporária (só no PR de testes): rota de produto e API de busca do Shopping do Inter."""
 import re
 
 from curl_cffi import requests
@@ -8,40 +8,27 @@ BASE = "https://shopping.inter.co"
 
 
 def get(url):
-    r = requests.get(url, headers=H, timeout=30, impersonate="chrome")
-    return r.status_code, r.text
+    r = requests.get(url, headers=H, timeout=30, impersonate="chrome", allow_redirects=True)
+    return r.status_code, r.text, str(r.url)
 
 
-st, home = get(BASE + "/")
-manifesto = re.search(r'src="([^"]*_buildManifest\.js)"', home)
-st, man = get(BASE + manifesto.group(1)) if manifesto else (0, "")
-rotas = re.findall(r'"(/[^"]*)":\[([^\]]*)\]', man)
-print("[sonda] rotas:", [r for r, _ in rotas][:80])
+for caminho in ("/Tenis-Olympikus-Delta/p/13045947?v=15988679", "/x/p/13045947?v=15988679", "/x/p/13045947",
+                "/x/p/11956898", "/x/p/11956898?v=14851930", "/x/r/11956898", "/x/dp/11956898"):
+    st, txt, final = get(BASE + caminho)
+    nome = re.search(r"<title[^>]*>(.*?)</title>", txt, re.S)
+    print(f"[sonda] {caminho} -> {st} {final} title={nome.group(1)[:90] if nome else None!r}")
 
-alvos = [r for r in rotas if "/p/" in r[0] or r[0] in ("/busca", "/[...slug]", "/[slug]")]
-chunks = set()
-for rota, lista in alvos:
-    for c in re.findall(r'"(static/chunks/[^"]+\.js)"', lista):
-        chunks.add(c)
-    print("[sonda] rota", rota, "->", re.findall(r'"(static/chunks/[^"]+\.js)"', lista)[-2:])
-# variáveis (c, s, a...) apontam para chunks comuns: pega todos os chunks citados no manifesto
-for c in re.findall(r'"(static/chunks/[^"]+\.js)"', man):
-    chunks.add(c)
-scripts = re.findall(r'<script[^>]+src="([^"]+\.js)"', home)
-urls = [BASE + "/_next/" + c for c in sorted(chunks)] + [s if s.startswith("http") else BASE + s for s in scripts]
-
-caminhos, contextos = set(), []
-for url in list(dict.fromkeys(urls))[:120]:
-    try:
-        st, js = get(url)
-    except Exception:  # noqa: BLE001
-        continue
-    for m in re.finditer(r'/site/[A-Za-z0-9_\-/${}.]{2,70}', js):
-        caminhos.add(m.group(0))
-    for m in re.finditer(r'(?:search|busca|product|produto)[A-Za-z]*[`"\']?\s*[,:(]\s*[`"\'][^`"\']{0,90}', js):
-        t = m.group(0)
-        if ("/" in t or "api" in t.lower()) and len(contextos) < 40 and t not in contextos:
-            contextos.append(t)
-print("[sonda] caminhos /site/:", sorted(caminhos)[:80])
-for t in contextos:
-    print("[sonda] ctx:", repr(t[:200]))
+st, home, _ = get(BASE + "/")
+scripts = [s if s.startswith("http") else BASE + s for s in re.findall(r'<script[^>]+src="([^"]+\.js)"', home)]
+scripts += [BASE + "/_next/static/chunks/5910-0ce95d8d259ccbab.js", BASE + "/_next/static/chunks/9332-2f75c391b5a51433.js",
+            BASE + "/_next/static/chunks/8035-424e51ac4e95edbc.js"]
+vistos = set()
+for url in dict.fromkeys(scripts):
+    st, js, _ = get(url)
+    print(f"[sonda] js {url.split('/')[-1][:45]} {st} {len(js)}")
+    for m in re.finditer(r"marketplace-api[^\"'`]{0,60}|[\"'`]/(?:site|api|v\d)/[^\"'`]{2,80}", js):
+        t = js[max(0, m.start() - 80): m.end() + 60].replace("\n", " ")
+        chave = m.group(0)[:50]
+        if chave not in vistos:
+            vistos.add(chave)
+            print(f"[sonda]   {t[:260]!r}")
