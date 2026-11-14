@@ -49,7 +49,7 @@ CABECALHOS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7",
     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.6,en;q=0.5",
 }
-CHAVES_NOME = ("name", "title", "productName", "nameComplete", "productTitle", "nome", "titulo")
+CHAVES_NOME = ("fullName", "name", "title", "productName", "nameComplete", "productTitle", "nome", "titulo")
 CHAVES_LOJA = ("storeName", "sellerName", "merchantName", "store", "seller", "merchant",
                "loja", "vendedor", "retailer", "shopName", "shop")
 CHAVES_URL = ("url", "link", "href", "productUrl", "permalink", "offerUrl", "canonical")
@@ -233,15 +233,25 @@ def varre(obj, fonte: dict, saida: list[Oferta], prof: int = 0) -> None:
         return
     if isinstance(obj, dict):
         titulo = nome_de(obj)
+        if titulo and bate_modelo(titulo) and DEPURAR and (not cor_ok(titulo) or excluido(titulo)):
+            print(f"          [diag] fora do filtro (cor/voltagem/palavra): {titulo[:110]}")
         if (titulo and bate_modelo(titulo) and cor_ok(titulo) and not excluido(titulo)
                 and not indisponivel(obj)):
             precos = precos_de(obj)
             if precos:
+                titulo_limpo = " ".join(html.unescape(titulo).split())[:120]
+                cashback = obj.get("fullCashback")
+                if isinstance(cashback, str) and obj.get("fullCashbackValue"):
+                    titulo_limpo += f" (+{cashback} de cashback)".replace("\xa0", " ")
+                if fonte.get("link_produto") and obj.get("id"):
+                    url = fonte["link_produto"].format(id=obj["id"])
+                else:
+                    url = url_de(obj, fonte.get("link_padrao") or fonte["url"])
                 saida.append(Oferta(
-                    titulo=" ".join(html.unescape(titulo).split())[:120],
+                    titulo=titulo_limpo,
                     preco=min(precos),
                     loja=loja_de(obj) or fonte["nome"],
-                    url=url_de(obj, fonte["url"]),
+                    url=url,
                     fonte=fonte["nome"],
                 ))
         for v in obj.values():
@@ -329,13 +339,13 @@ DEPURAR = bool(os.getenv("DEPURAR"))
 IMITACOES = ["chrome", "safari", "firefox"] if IMITAR else [None]
 
 
-def baixa(url: str) -> tuple[str, str]:
+def baixa(url: str, extras: dict | None = None) -> tuple[str, str]:
     """Baixa a página (seguindo redirecionamentos). Se a loja bloquear, tenta com outro navegador."""
     ultimo_erro = None
     for tentativa, imitar in enumerate(IMITACOES):
         try:
             extra = {"impersonate": imitar} if imitar else {}
-            r = navegador.get(url, headers=CABECALHOS, timeout=30, allow_redirects=True, **extra)
+            r = navegador.get(url, headers={**CABECALHOS, **(extras or {})}, timeout=30, allow_redirects=True, **extra)
             texto = r.text
             if r.status_code in (403, 429, 503):
                 if DEPURAR:
@@ -414,7 +424,7 @@ def amazon_busca(texto: str, fonte: dict) -> list[Oferta]:
 
 
 def consulta_fonte(fonte: dict) -> list[Oferta]:
-    texto, url_final = baixa(fonte["url"])
+    texto, url_final = baixa(fonte["url"], fonte.get("cabecalhos"))
     ofertas: list[Oferta] = []
     if "amazon.com" in url_final:
         ofertas = amazon_busca(texto, fonte) if "s-search-result" in texto else amazon(texto, fonte, url_final)
@@ -447,6 +457,14 @@ def diagnostico(texto: str, url_final: str) -> None:
     padrao = re.compile("|".join(re.escape(k) for k in CFG["palavras_chave"]), re.I)
     for m in list(padrao.finditer(limpo))[:4]:
         print(f"          [diag] ...{limpo[max(0, m.start() - 120): m.end() + 260]!r}")
+    forms = re.findall(r"<form[^>]*>", texto)[:3]
+    entradas = re.findall(r"<input[^>]*(?:search|busca|name=)[^>]*>", texto, re.I)[:4]
+    links = sorted(set(re.findall(r'href="([^"]*(?:busca|search)[^"]*)"', texto, re.I)))[:6]
+    if forms or entradas or links:
+        print(f"          [diag] forms={forms} inputs={entradas} links={links}"[:900])
+    m0 = re.search(r'"priceValue"\s*:', texto)
+    if m0:
+        print(f"          [diag] contexto: {texto[max(0, m0.start() - 900): m0.start() + 300]!r}")
     for m in list(re.finditer(r'"[A-Za-z_]*(?:price|preco)[A-Za-z_]*"\s*:', texto, re.I))[:3]:
         print(f"          [diag] chave de preço: {texto[m.start(): m.start() + 140]!r}")
 

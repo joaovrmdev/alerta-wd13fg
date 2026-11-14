@@ -1,7 +1,7 @@
 # Alerta de promoção — Samsung Lava e Seca WD13FG
 
 Robô que roda de graça no GitHub Actions a cada 20 minutos, lê o preço da WD13FG em várias lojas
-(versões inox e black; via Buscapé e Zoom, que comparam várias lojas, além de Amazon, Samsung Shop e Fast Shop) e te avisa
+(versões inox e black; via Buscapé e Zoom, que comparam várias lojas, além de Amazon, Samsung Shop, Fast Shop e Inter) e te avisa
 no **Telegram** (e opcionalmente Discord/WhatsApp) quando:
 
 - o menor preço chega no **preço-alvo** (`preco_alvo` no `config.json`), ou
@@ -55,6 +55,7 @@ Telegram com os preços atuais e quais lojas ele conseguiu ler.
 
 - Algumas lojas bloqueiam robôs às vezes; o resumo diário mostra quais falharam. Basta uma ou duas
   funcionando (Buscapé/Zoom já comparam várias lojas) para o alerta valer.
+- Itaú Shop e as ofertas exclusivas para correntistas do Inter só aparecem com login no app, então o alerta não consegue ver.
 - Preço marcado como "estimado" veio de leitura do texto da página: confira no link antes de comprar.
 - O GitHub pausa agendamentos de repositórios públicos sem nenhuma atividade por 60 dias. Se acontecer,
   é só reativar na aba Actions.
