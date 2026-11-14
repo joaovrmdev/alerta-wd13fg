@@ -49,7 +49,7 @@ CABECALHOS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.8,*/*;q=0.7",
     "Accept-Language": "pt-BR,pt;q=0.9,en-US;q=0.6,en;q=0.5",
 }
-CHAVES_NOME = ("name", "title", "productName", "nameComplete", "productTitle", "nome", "titulo")
+CHAVES_NOME = ("fullName", "name", "title", "productName", "nameComplete", "productTitle", "nome", "titulo")
 CHAVES_LOJA = ("storeName", "sellerName", "merchantName", "store", "seller", "merchant",
                "loja", "vendedor", "retailer", "shopName", "shop")
 CHAVES_URL = ("url", "link", "href", "productUrl", "permalink", "offerUrl", "canonical")
@@ -246,7 +246,7 @@ def varre(obj, fonte: dict, saida: list[Oferta], prof: int = 0) -> None:
                 if fonte.get("link_produto") and obj.get("id"):
                     url = fonte["link_produto"].format(id=obj["id"])
                 else:
-                    url = url_de(obj, fonte["url"])
+                    url = url_de(obj, fonte.get("link_padrao") or fonte["url"])
                 saida.append(Oferta(
                     titulo=titulo_limpo,
                     preco=min(precos),
