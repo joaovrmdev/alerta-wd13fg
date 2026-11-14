@@ -447,6 +447,11 @@ def diagnostico(texto: str, url_final: str) -> None:
     padrao = re.compile("|".join(re.escape(k) for k in CFG["palavras_chave"]), re.I)
     for m in list(padrao.finditer(limpo))[:4]:
         print(f"          [diag] ...{limpo[max(0, m.start() - 120): m.end() + 260]!r}")
+    forms = re.findall(r"<form[^>]*>", texto)[:3]
+    entradas = re.findall(r"<input[^>]*(?:search|busca|name=)[^>]*>", texto, re.I)[:4]
+    links = sorted(set(re.findall(r'href="([^"]*(?:busca|search)[^"]*)"', texto, re.I)))[:6]
+    if forms or entradas or links:
+        print(f"          [diag] forms={forms} inputs={entradas} links={links}"[:900])
     for m in list(re.finditer(r'"[A-Za-z_]*(?:price|preco)[A-Za-z_]*"\s*:', texto, re.I))[:3]:
         print(f"          [diag] chave de preço: {texto[m.start(): m.start() + 140]!r}")
 
