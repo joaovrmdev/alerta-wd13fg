@@ -452,6 +452,9 @@ def diagnostico(texto: str, url_final: str) -> None:
     links = sorted(set(re.findall(r'href="([^"]*(?:busca|search)[^"]*)"', texto, re.I)))[:6]
     if forms or entradas or links:
         print(f"          [diag] forms={forms} inputs={entradas} links={links}"[:900])
+    m0 = re.search(r'"priceValue"\s*:', texto)
+    if m0:
+        print(f"          [diag] contexto: {texto[max(0, m0.start() - 900): m0.start() + 300]!r}")
     for m in list(re.finditer(r'"[A-Za-z_]*(?:price|preco)[A-Za-z_]*"\s*:', texto, re.I))[:3]:
         print(f"          [diag] chave de preço: {texto[m.start(): m.start() + 140]!r}")
 
