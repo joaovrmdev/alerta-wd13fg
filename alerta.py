@@ -233,15 +233,25 @@ def varre(obj, fonte: dict, saida: list[Oferta], prof: int = 0) -> None:
         return
     if isinstance(obj, dict):
         titulo = nome_de(obj)
+        if titulo and bate_modelo(titulo) and DEPURAR and (not cor_ok(titulo) or excluido(titulo)):
+            print(f"          [diag] fora do filtro (cor/voltagem/palavra): {titulo[:110]}")
         if (titulo and bate_modelo(titulo) and cor_ok(titulo) and not excluido(titulo)
                 and not indisponivel(obj)):
             precos = precos_de(obj)
             if precos:
+                titulo_limpo = " ".join(html.unescape(titulo).split())[:120]
+                cashback = obj.get("fullCashback")
+                if isinstance(cashback, str) and obj.get("fullCashbackValue"):
+                    titulo_limpo += f" (+{cashback} de cashback)".replace("\xa0", " ")
+                if fonte.get("link_produto") and obj.get("id"):
+                    url = fonte["link_produto"].format(id=obj["id"])
+                else:
+                    url = url_de(obj, fonte["url"])
                 saida.append(Oferta(
-                    titulo=" ".join(html.unescape(titulo).split())[:120],
+                    titulo=titulo_limpo,
                     preco=min(precos),
                     loja=loja_de(obj) or fonte["nome"],
-                    url=url_de(obj, fonte["url"]),
+                    url=url,
                     fonte=fonte["nome"],
                 ))
         for v in obj.values():
@@ -329,13 +339,13 @@ DEPURAR = bool(os.getenv("DEPURAR"))
 IMITACOES = ["chrome", "safari", "firefox"] if IMITAR else [None]
 
 
-def baixa(url: str) -> tuple[str, str]:
+def baixa(url: str, extras: dict | None = None) -> tuple[str, str]:
     """Baixa a página (seguindo redirecionamentos). Se a loja bloquear, tenta com outro navegador."""
     ultimo_erro = None
     for tentativa, imitar in enumerate(IMITACOES):
         try:
             extra = {"impersonate": imitar} if imitar else {}
-            r = navegador.get(url, headers=CABECALHOS, timeout=30, allow_redirects=True, **extra)
+            r = navegador.get(url, headers={**CABECALHOS, **(extras or {})}, timeout=30, allow_redirects=True, **extra)
             texto = r.text
             if r.status_code in (403, 429, 503):
                 if DEPURAR:
@@ -414,7 +424,7 @@ def amazon_busca(texto: str, fonte: dict) -> list[Oferta]:
 
 
 def consulta_fonte(fonte: dict) -> list[Oferta]:
-    texto, url_final = baixa(fonte["url"])
+    texto, url_final = baixa(fonte["url"], fonte.get("cabecalhos"))
     ofertas: list[Oferta] = []
     if "amazon.com" in url_final:
         ofertas = amazon_busca(texto, fonte) if "s-search-result" in texto else amazon(texto, fonte, url_final)

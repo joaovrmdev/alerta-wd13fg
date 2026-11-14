@@ -52,10 +52,6 @@ jobs:
           WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
           DEPURAR: ${{ github.event_name == 'pull_request' && '1' || '' }}
 
-      - name: Sonda (temporária)
-        if: github.event_name == 'pull_request' && hashFiles('sonda.py') != ''
-        run: python sonda.py || true
-
       - name: Guarda o histórico de preços
         if: always() && github.event_name != 'pull_request'
         uses: actions/cache/save@v4
