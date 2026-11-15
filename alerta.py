@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """
-Alerta de promoção da Samsung WD13FG (lava e seca).
+Alerta de promoção (começou com a Samsung WD13FG, lava e seca).
 
 Roda no GitHub Actions: lê o preço em várias lojas e manda mensagem no
 Telegram (e, se configurado, Discord e WhatsApp) quando o preço chega no alvo
 ou cai de repente. Uma vez por dia manda um resumo, que também serve para saber
 que o alerta está vivo.
 
+Cada produto tem o seu arquivo de configuração. O padrão é config.json; para
+outro produto, aponte a variável CONFIG para o arquivo dele (cada um guarda o
+seu próprio histórico em estado/).
+
 Uso:
     python alerta.py             # verificação normal (o que o agendamento roda)
     python alerta.py teste       # manda um resumo agora, para testar as mensagens
     python alerta.py simulacao   # só mostra no log o que mandaria (usado nos pull requests)
+    CONFIG=config-glamy.json python alerta.py teste   # o mesmo, para outro produto
 """
 from __future__ import annotations
 
@@ -39,8 +44,11 @@ except ImportError:  # pragma: no cover
     IMITAR = {}
 
 BASE = Path(__file__).resolve().parent
-CFG = json.loads((BASE / "config.json").read_text(encoding="utf-8"))
-ARQ_ESTADO = BASE / "estado" / "estado.json"
+ARQ_CONFIG = BASE / os.getenv("CONFIG", "config.json")
+CFG = json.loads(ARQ_CONFIG.read_text(encoding="utf-8"))
+# config.json mantém o nome antigo do estado, para não perder o histórico que já existe
+ARQ_ESTADO = BASE / "estado" / ("estado.json" if ARQ_CONFIG.name == "config.json"
+                                else f"estado-{ARQ_CONFIG.stem}.json")
 BRT = timezone(timedelta(hours=-3))
 MIN_VALIDO, MAX_VALIDO = CFG.get("faixa_de_preco_valida", [2500, 15000])
 URLS_FONTES = {f["url"] for f in CFG["fontes"]}
@@ -78,11 +86,13 @@ def normaliza(s: str) -> str:
 
 
 MODELOS = [re.sub(r"[\s\-_/]", "", normaliza(k)) for k in CFG["palavras_chave"]]
+# termos que também precisam aparecer (ex.: "com tampo", para não pegar a versão sem tampo)
+EXIGIDOS = [re.sub(r"[\s\-_/]", "", normaliza(k)) for k in CFG.get("exigir_tambem") or []]
 
 
 def bate_modelo(titulo: str) -> bool:
     t = re.sub(r"[\s\-_/]", "", normaliza(titulo))
-    return any(m in t for m in MODELOS)
+    return any(m in t for m in MODELOS) and all(e in t for e in EXIGIDOS)
 
 
 def excluido(titulo: str) -> bool:
@@ -435,6 +445,10 @@ def consulta_fonte(fonte: dict) -> list[Oferta]:
         de, para = fonte["trocar_link"]
         for o in ofertas:
             o.url = o.url.replace(de, para)
+    if fonte.get("desconto_pix"):  # loja que só informa o preço cheio, mas dá desconto fixo no PIX
+        for o in ofertas:
+            o.preco = round(o.preco * (1 - fonte["desconto_pix"] / 100), 2)
+            o.loja = f"{o.loja} (no PIX)"
     return ofertas
 
 

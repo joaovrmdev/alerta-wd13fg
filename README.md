@@ -43,6 +43,20 @@ Telegram com os preços atuais e quais lojas ele conseguiu ler.
 | `excluir_se_tiver` | palavras que descartam um anúncio (branca, peças, usados, vitrine...) |
 | `fontes` | páginas consultadas; dá pra adicionar o link de qualquer produto/busca. `"ativa": false` desliga uma página (Magalu, Casas Bahia e Carrefour bloqueiam o GitHub e o Mercado Livre pede login, mas os preços delas já aparecem via Buscapé/Zoom) |
 
+## Outros produtos
+
+O mesmo robô também acompanha o **balcão Madesa Glamy 150 cm com tampo** (`config-glamy.json`), alvo de
+R$ 600. Cada produto tem o seu arquivo de configuração e o seu próprio histórico; no workflow, cada um é
+um passo com `CONFIG: <arquivo>`. Para acompanhar mais um produto, copie um desses arquivos, ajuste e
+adicione um passo igual.
+
+Campos extras que um produto pode usar:
+
+| Campo | O que faz |
+|---|---|
+| `exigir_tambem` | termos que também precisam estar no nome (ex.: `"com tampo"`, para ignorar a versão sem tampo) |
+| `desconto_pix` (em uma fonte) | desconto fixo no PIX que a loja não mostra nos dados (ex.: `12` na Madesa) |
+
 ## Canais opcionais
 
 - **Discord:** no servidor, *Configurações do servidor → Integrações → Webhooks → Novo webhook → Copiar URL*.

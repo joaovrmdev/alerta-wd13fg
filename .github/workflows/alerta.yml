@@ -24,7 +24,15 @@ concurrency:
 jobs:
   verificar:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    env:
+      MODO: ${{ github.event_name == 'pull_request' && 'simulacao' || inputs.modo || 'verificar' }}
+      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+      WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+      WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
+      DEPURAR: ${{ github.event_name == 'pull_request' && '1' || '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,15 +50,14 @@ jobs:
           key: estado-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: estado-
 
-      - name: Verifica os preços
-        run: python alerta.py "${{ github.event_name == 'pull_request' && 'simulacao' || inputs.modo || 'verificar' }}"
+      - name: Verifica os preços — lava e seca WD13FG
+        run: python alerta.py "$MODO"
+
+      - name: Verifica os preços — balcão Madesa Glamy
+        if: ${{ !cancelled() }}
+        run: python alerta.py "$MODO"
         env:
-          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
-          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
-          WHATSAPP_APIKEY: ${{ secrets.WHATSAPP_APIKEY }}
-          DEPURAR: ${{ github.event_name == 'pull_request' && '1' || '' }}
+          CONFIG: config-glamy.json
 
       - name: Guarda o histórico de preços
         if: always() && github.event_name != 'pull_request'

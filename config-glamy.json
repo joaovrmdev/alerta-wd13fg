@@ -1,0 +1,22 @@
+{
+  "produto": "Balcão Madesa Glamy 150 cm (com tampo)",
+  "palavras_chave": ["Glamy 150"],
+  "exigir_tambem": ["com tampo"],
+  "cores_aceitas": ["branco"],
+  "preco_alvo": 600,
+  "voltagem": null,
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 24,
+  "resumo_diario_hora": 9,
+  "faixa_de_preco_valida": [400, 2500],
+  "excluir_se_tiver": ["sem tampo", "tampo para", "kit", "compacta", "aereo", "paneleiro", "torre", "inox", "cuba", "usado", "usada", "vitrine", "seminov", "recondicionad", "mostruario", "avariad"],
+  "fontes": [
+    {"nome": "Madesa", "url": "https://www.madesa.com/products/balcao-de-pia-madesa-glamy-150-cm-2-portas-e-2-gavetas-com-tampo-branco.js", "desconto_pix": 12, "trocar_link": ["com-tampo-branco.js", "com-tampo-branco"]},
+    {"nome": "Buscapé (branco/preto)", "url": "https://www.buscape.com.br/armario-e-balcao-de-cozinha/balcao-gabinete-de-pia-madesa-glamy-150-cm-2-gavetas-2-portas-com-tampo-branco-preto"},
+    {"nome": "Buscapé (rustic/branco)", "url": "https://www.buscape.com.br/armario-e-balcao-de-cozinha/balcao-gabinete-de-pia-madesa-glamy-150-cm-2-gavetas-2-portas-com-tampo-rustic-branco-rustic-branco"},
+    {"nome": "Zoom (branco/preto)", "url": "https://www.zoom.com.br/armario-e-balcao-de-cozinha/balcao-gabinete-de-pia-madesa-glamy-150-cm-2-gavetas-2-portas-com-tampo-branco-preto"},
+    {"nome": "Zoom (rustic/branco)", "url": "https://www.zoom.com.br/armario-e-balcao-de-cozinha/balcao-gabinete-de-pia-madesa-glamy-150-cm-2-gavetas-2-portas-com-tampo-rustic-branco-rustic-branco"},
+    {"nome": "Buscapé (busca)", "url": "https://www.buscape.com.br/busca/glamy+150+com+tampo"},
+    {"nome": "Zoom (busca)", "url": "https://www.zoom.com.br/busca/glamy+150+com+tampo"}
+  ]
+}
