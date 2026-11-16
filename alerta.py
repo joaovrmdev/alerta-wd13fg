@@ -66,6 +66,7 @@ CHAVE_PRECO = re.compile(
     r"offerprice|currentprice|pricevalue|pricewithdiscount|sellingprice|minprice|"
     r"bestpricevalue|preco|precopix|precoavista|precopromocional)$"
 )
+CHAVE_PARCELA = re.compile(r"(?i)installment|parcel")
 SINAIS_DE_BLOQUEIO = ("captcha", "access denied", "just a moment", "are you a robot",
                       "verifique que você é humano", "request blocked", "attention required")
 
@@ -78,6 +79,36 @@ class Oferta:
     url: str
     fonte: str
     estimado: bool = False
+    forma: str = ""                 # "no PIX" / "à vista" quando a loja diz como é esse preço
+    parcelas: int | None = None     # melhor parcelamento que a loja mostra
+    parcela: float | None = None
+    sem_juros: bool | None = None
+    total: float | None = None      # total parcelado informado pela loja (se houver)
+
+    @property
+    def total_parcelado(self) -> float | None:
+        if self.total:
+            return self.total
+        return round(self.parcelas * self.parcela, 2) if self.parcelas and self.parcela else None
+
+    @property
+    def hoje_parcelado(self) -> float | None:
+        """Quanto as parcelas valem hoje, deixando o dinheiro rendendo até cada vencimento."""
+        taxa = CFG.get("rendimento_mensal_pct")
+        if not (taxa and self.parcelas and self.parcela and self.parcelas >= 2):
+            return None
+        i = taxa / 100
+        return round(self.parcela * (1 - (1 + i) ** -self.parcelas) / i, 2)
+
+    @property
+    def parcelar_compensa(self) -> bool:
+        hoje = self.hoje_parcelado
+        return hoje is not None and hoje < self.preco - 0.5
+
+    @property
+    def custo(self) -> float:
+        """O que a compra custa de verdade: o menor entre pagar agora e parcelar (em valor de hoje)."""
+        return self.hoje_parcelado if self.parcelar_compensa else self.preco  # type: ignore[return-value]
 
 
 # ----------------------------------------------------------------- texto e preço
@@ -189,6 +220,8 @@ def precos_de(obj, prof: int = 0, sob_chave_preco: bool = False) -> list[float]:
         return achados
     if isinstance(obj, dict):
         for k, v in obj.items():
+            if CHAVE_PARCELA.search(str(k)):  # valor de parcela não é preço do produto
+                continue
             k_preco = bool(CHAVE_PRECO.match(str(k))) or (
                 sob_chave_preco and str(k).lower() in ("value", "amount"))
             if isinstance(v, dict):
@@ -238,6 +271,98 @@ def url_de(d: dict, base: str) -> str:
     return base
 
 
+def _num(d: dict, *chaves):
+    for k in chaves:
+        v = para_numero(d.get(k))
+        if v:
+            return v
+    return None
+
+
+def condicoes(obj, prof: int = 0) -> list[dict]:
+    """Formas de pagamento junto de cada preço: valor no PIX e parcelamento.
+
+    Entende o formato VTEX (lista "Installments" por meio de pagamento, ex.: Samsung, Fast Shop) e o
+    formato {"installments": {"amount_months", "price", "total_value"}} (ex.: Buscapé/Zoom).
+    """
+    achadas: list[dict] = []
+    if prof > 8:
+        return achadas
+    if isinstance(obj, list):
+        for item in obj[:300]:
+            if isinstance(item, (dict, list)) and not (isinstance(item, dict) and ignorar_filho(item)):
+                achadas += condicoes(item, prof + 1)
+        return achadas
+    if not isinstance(obj, dict):
+        return achadas
+    base = [p for k, v in obj.items() if CHAVE_PRECO.match(str(k)) and not isinstance(v, (dict, list))
+            for p in [no_intervalo(v)] if p is not None]
+    inst = next((v for k, v in obj.items() if str(k).lower() in ("installments", "installment")), None)
+    if base and isinstance(inst, list):  # VTEX
+        pix, melhor = None, None
+        for x in inst:
+            if not isinstance(x, dict):
+                continue
+            n, valor = int(_num(x, "NumberOfInstallments") or 0), _num(x, "Value")
+            if not (n and valor):
+                continue
+            if n == 1 and "pix" in str(x.get("PaymentSystemName", "")).lower():
+                pix = min(pix or valor, valor)
+            elif n >= 2 and not x.get("InterestRate") and (melhor is None or n > melhor[0]
+                                                           or (n == melhor[0] and valor < melhor[1])):
+                melhor = (n, valor, _num(x, "TotalValuePlusInterestRate"))
+        achadas.append({"base": min(base), "pix": no_intervalo(pix) if pix else None,
+                        "parcelas": melhor[0] if melhor else None, "parcela": melhor[1] if melhor else None,
+                        "sem_juros": True if melhor else None, "total": melhor[2] if melhor else None})
+    elif base and isinstance(inst, dict):  # Buscapé / Zoom
+        n, valor = _num(inst, "amount_months", "months", "count", "quantity"), _num(inst, "price", "value")
+        if n and n >= 2 and valor:
+            juros = inst.get("interest", inst.get("interestRate"))
+            achadas.append({"base": min(base), "pix": None, "parcelas": int(n), "parcela": valor,
+                            "sem_juros": (juros == 0) if juros is not None else None,
+                            "total": _num(inst, "total_value", "total")})
+    for v in obj.values():
+        if isinstance(v, (dict, list)) and not (isinstance(v, dict) and ignorar_filho(v)):
+            achadas += condicoes(v, prof + 1)
+    return achadas
+
+
+def aplica_condicoes(o: Oferta, obj) -> Oferta:
+    """Usa o pagamento do mesmo preço que virou a oferta (o PIX entra como preço, se for menor)."""
+    candidatas = [c for c in condicoes(obj) if abs(c["base"] - o.preco) < 0.01]
+    if not candidatas:
+        return o
+    c = min(candidatas, key=lambda c: (c["pix"] or c["base"], -(c["parcelas"] or 0)))
+    if c["pix"] and c["pix"] < o.preco:
+        o.preco, o.forma = c["pix"], "no PIX"
+    elif c["parcelas"]:
+        o.forma = "à vista"
+    o.parcelas, o.parcela, o.sem_juros, o.total = c["parcelas"], c["parcela"], c["sem_juros"], c["total"]
+    return o
+
+
+def pagamento_do_texto(o: Oferta, t: str, perto: int | None = None) -> Oferta:
+    """Amazon: "10% off à vista no Pix ... ou em até 12x de R$ 391,62 sem juros (total parcelado R$ ...)".
+
+    `perto` limita a busca ao começo do trecho (logo depois do preço principal), para não pegar o
+    parcelamento de outro produto da página; o "sem juros" pode ser confirmado mais adiante.
+    """
+    t = " ".join(html.unescape(re.sub(r"<[^>]+>", " ", t)).split())
+    regiao = t[:perto] if perto else t
+    if re.search(r"(?i)à vista no pix", regiao):
+        o.forma = "no PIX"
+    padrao = r"(?i)em até (\d{1,2})x de R\$\s*([\d.]+,\d{2})(?:/mês)?(?:\s*R\$\s*[\d.]+,\d{2})?(\s*sem juros)?"
+    achados = list(re.finditer(padrao, regiao))
+    m = next((x for x in achados if x.group(3)), achados[0] if achados else None)
+    if m and int(m.group(1)) >= 2:
+        o.parcelas, o.parcela = int(m.group(1)), para_numero(m.group(2))
+        confirma = rf"{o.parcelas}x de R\$\s*{re.escape(m.group(2))}(?:/mês)?(?:\s*R\$\s*[\d.]+,\d{{2}})?\s*sem juros"
+        o.sem_juros = True if (m.group(3) or re.search(confirma, t, re.I)) else None
+        tot = re.search(rf"{o.parcelas}x de R\$\s*{re.escape(m.group(2))}[^()]{{0,80}}\(total parcelado R\$\s*([\d.]+,\d{{2}})\)", t)
+        o.total = para_numero(tot.group(1)) if tot else None
+    return o
+
+
 def varre(obj, fonte: dict, saida: list[Oferta], prof: int = 0) -> None:
     if prof > 80:
         return
@@ -247,13 +372,13 @@ def varre(obj, fonte: dict, saida: list[Oferta], prof: int = 0) -> None:
                 and not indisponivel(obj)):
             precos = precos_de(obj)
             if precos:
-                saida.append(Oferta(
+                saida.append(aplica_condicoes(Oferta(
                     titulo=" ".join(html.unescape(titulo).split())[:120],
                     preco=min(precos),
                     loja=loja_de(obj) or fonte["nome"],
                     url=url_de(obj, fonte["url"]),
                     fonte=fonte["nome"],
-                ))
+                ), obj))
         for v in obj.values():
             if isinstance(v, (dict, list)):
                 varre(v, fonte, saida, prof + 1)
@@ -394,7 +519,8 @@ def amazon(texto: str, fonte: dict, url_final: str) -> list[Oferta]:
             p = no_intervalo(pm.group(1))
             if p is not None:
                 url_limpa = re.sub(r"(/dp/[A-Z0-9]{10}).*", r"\1", url_final)
-                return [Oferta(titulo[:120], p, "Amazon", url_limpa, fonte["nome"])]
+                return [pagamento_do_texto(Oferta(titulo[:120], p, "Amazon", url_limpa, fonte["nome"]),
+                                           texto[i:i + 80000], perto=1500)]
     if DEPURAR:
         print("          [diag] Amazon: achei o título mas não o preço principal (sem estoque?)")
     return []
@@ -419,7 +545,7 @@ def amazon_busca(texto: str, fonte: dict) -> list[Oferta]:
             continue
         asin = re.search(r"/dp/([A-Z0-9]{10})", card)
         url = f"https://www.amazon.com.br/dp/{asin.group(1)}" if asin else fonte["url"]
-        ofertas.append(Oferta(titulo[:120], p, "Amazon", url, fonte["nome"]))
+        ofertas.append(pagamento_do_texto(Oferta(titulo[:120], p, "Amazon", url, fonte["nome"]), card))
     return ofertas
 
 
@@ -448,7 +574,7 @@ def consulta_fonte(fonte: dict) -> list[Oferta]:
     if fonte.get("desconto_pix"):  # loja que só informa o preço cheio, mas dá desconto fixo no PIX
         for o in ofertas:
             o.preco = round(o.preco * (1 - fonte["desconto_pix"] / 100), 2)
-            o.loja = f"{o.loja} (no PIX)"
+            o.forma = "no PIX"
     return ofertas
 
 
@@ -467,13 +593,15 @@ def diagnostico(texto: str, url_final: str) -> None:
 
 def sem_repetidas(ofertas: list[Oferta]) -> list[Oferta]:
     # mesmo preço visto em lugares diferentes: fica o mais específico (com loja e link próprios)
+    # (entre repetidas, fica a que sabe como pagar: PIX/parcelas). Ordena pelo custo de verdade.
     vistas, unicas = set(), []
-    for o in sorted(ofertas, key=lambda o: (o.preco, o.estimado, o.loja == o.fonte, o.url in URLS_FONTES)):
+    for o in sorted(ofertas, key=lambda o: (o.preco, o.estimado, not o.parcelas, not o.forma,
+                                            o.loja == o.fonte, o.url in URLS_FONTES)):
         chave = o.preco
         if chave not in vistas:
             vistas.add(chave)
             unicas.append(o)
-    return unicas
+    return sorted(unicas, key=lambda o: (o.custo, o.estimado))
 
 
 # -------------------------------------------------------------------- mensagens
@@ -497,14 +625,31 @@ def monta_mensagem(cabecalho: str, ofertas: list[Oferta], notas: list[str], cana
     linhas = [negrito(cabecalho, canal), ""]
     for o in ofertas[:5]:
         aviso = " ⚠️ estimado, confira" if o.estimado else ""
-        linhas.append(f"• {negrito(brl(o.preco), canal)} — {link(o.loja, o.url, canal)}{texto(aviso, canal)}")
+        forma = f" {o.forma}" if o.forma else ""
+        linhas.append(f"• {negrito(brl(o.preco), canal)}{texto(forma, canal)} — {link(o.loja, o.url, canal)}"
+                      f"{texto(aviso, canal)}")
+        if o.parcelas:
+            linhas.append("  " + texto(linha_parcelado(o), canal))
         linhas.append(f"  {texto(o.titulo, canal)}")
     if not ofertas:
         linhas.append(texto("Nenhum preço encontrado nesta rodada.", canal))
+    if any(o.hoje_parcelado for o in ofertas[:5]):
+        taxa = f"{CFG['rendimento_mensal_pct']:.2f}".replace(".", ",")
+        notas = notas + [f"\"Hoje\" = quanto as parcelas valem agora, com o dinheiro rendendo {taxa}% ao mês "
+                         "até cada vencimento."]
     if notas:
         linhas.append("")
         linhas += [texto(n, canal) for n in notas]
     return "\n".join(linhas)
+
+
+def linha_parcelado(o: Oferta) -> str:
+    partes = f"ou {o.parcelas}x de {brl(o.parcela)}{' sem juros' if o.sem_juros else ''} = {brl(o.total_parcelado)}"
+    if o.hoje_parcelado:
+        partes += f" (≈ {brl(o.hoje_parcelado)} hoje)"
+        if o.parcelar_compensa:
+            partes += " ✅ parcelar sai melhor"
+    return partes
 
 
 def envia(cabecalho: str, ofertas: list[Oferta], notas: list[str]) -> list[str]:
@@ -573,33 +718,35 @@ def decide(estado: dict, melhor: Oferta | None, agora: datetime) -> tuple[str | 
     recentes = [p for q, p in historico if datetime.fromisoformat(q) > agora - timedelta(days=3)]
     mediana = statistics.median(recentes) if len(recentes) >= 6 else None
     recorde = estado.get("menor_ja_visto")
-    if recorde is None or melhor.preco < recorde["preco"]:
+    custo = melhor.custo
+    if recorde is None or custo < recorde["preco"]:
         if recorde is not None:
             notas.append(f"📉 Menor preço já visto pelo alerta (antes: {brl(recorde['preco'])}).")
-        estado["menor_ja_visto"] = {"preco": melhor.preco, "quando": agora.isoformat(), "loja": melhor.loja}
+        estado["menor_ja_visto"] = {"preco": custo, "quando": agora.isoformat(), "loja": melhor.loja}
 
     motivo = None
     alvo = CFG.get("preco_alvo")
     queda = CFG.get("avisar_queda_percentual")
-    if alvo and melhor.preco <= alvo:
-        motivo = f"🔥 {CFG['produto']} chegou no seu preço-alvo ({brl(alvo)})!"
-    elif queda and mediana and not melhor.estimado and melhor.preco <= mediana * (1 - queda / 100):
-        pct = (1 - melhor.preco / mediana) * 100
+    if alvo and custo <= alvo:
+        jeito = " parcelando" if melhor.parcelar_compensa else ""
+        motivo = f"🔥 {CFG['produto']} chegou no seu preço-alvo{jeito} ({brl(alvo)})!"
+    elif queda and mediana and not melhor.estimado and custo <= mediana * (1 - queda / 100):
+        pct = (1 - custo / mediana) * 100
         motivo = f"📉 {CFG['produto']} caiu {pct:.0f}% (média dos últimos dias: {brl(mediana)})"
 
     ultimo = estado.get("ultimo_alerta")
     if motivo:
         repetir = timedelta(hours=CFG.get("repetir_alerta_horas", 6))
-        novo = (ultimo is None or melhor.preco < ultimo["preco"] - 0.5
+        novo = (ultimo is None or custo < ultimo["preco"] - 0.5
                 or agora - datetime.fromisoformat(ultimo["quando"]) >= repetir)
         if novo:
-            estado["ultimo_alerta"] = {"preco": melhor.preco, "quando": agora.isoformat()}
+            estado["ultimo_alerta"] = {"preco": custo, "quando": agora.isoformat()}
         else:
             motivo = None
     else:
         estado["ultimo_alerta"] = None  # voltou a subir: a próxima queda avisa de novo
 
-    historico.append([agora.isoformat(), melhor.preco])
+    historico.append([agora.isoformat(), custo])
     estado["historico"] = historico[-2000:]
     return motivo, notas
 
@@ -636,7 +783,9 @@ def main() -> int:
                                sorted(achadas, key=lambda o: o.preco)[:4]) or "nenhum preço"
             print(f"[ok]    {fonte['nome']}: {resumo}")
             for o in sorted(achadas, key=lambda o: o.preco)[:4]:
-                print(f"          {brl(o.preco)} | {o.loja} | {o.titulo[:70]} | {o.url[:90]}")
+                pag = f" {o.forma}" if o.forma else ""
+                pag += f" | {linha_parcelado(o)}" if o.parcelas else ""
+                print(f"          {brl(o.preco)}{pag} | {o.loja} | {o.titulo[:70]} | {o.url[:90]}")
         except Exception as e:  # noqa: BLE001
             erro = str(e).split(". See ")[0].replace("Failed to perform, ", "")
             falhas.append(f"{fonte['nome']}: {erro[:80]}")
@@ -645,7 +794,12 @@ def main() -> int:
     ofertas = sem_repetidas(ofertas)
     melhor = ofertas[0] if ofertas else None
     motivo, notas = decide(estado, melhor, agora)
-    print(f"\nMelhor preço: {brl(melhor.preco) + ' em ' + melhor.loja if melhor else 'nenhum'}")
+    if melhor:
+        jeito = f" (parcelado, em valor de hoje; à vista {brl(melhor.preco)})" if melhor.parcelar_compensa else \
+            (f" {melhor.forma}" if melhor.forma else "")
+        print(f"\nMelhor preço: {brl(melhor.custo)}{jeito} em {melhor.loja}")
+    else:
+        print("\nMelhor preço: nenhum")
 
     if ofertas:
         estado["falhas_seguidas"] = 0

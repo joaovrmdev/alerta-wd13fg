@@ -35,7 +35,8 @@ Telegram com os preços atuais e quais lojas ele conseguiu ler.
 
 | Campo | O que faz |
 |---|---|
-| `preco_alvo` | avisa quando o menor preço ficar igual ou abaixo disso |
+| `preco_alvo` | avisa quando o custo da compra ficar igual ou abaixo disso (PIX, à vista ou parcelado em valor de hoje, o que sair melhor) |
+| `rendimento_mensal_pct` | quanto o seu dinheiro rende por mês, já sem IR (0,85 ≈ CDB 100% do CDI em nov/2026). Serve para comparar parcelar com pagar à vista; `null` ignora o parcelado |
 | `cores_aceitas` | só considera anúncios que citam uma dessas cores (inox/black); `[]` aceita todas |
 | `voltagem` | `"220V"` ignora anúncios que dizem só 127V/110V (e vice-versa); `null` aceita tudo |
 | `avisar_queda_percentual` | avisa quedas bruscas mesmo acima do alvo; `null` desliga |
@@ -43,6 +44,19 @@ Telegram com os preços atuais e quais lojas ele conseguiu ler.
 | `resumo_diario_hora` | hora do resumo diário (horário de Brasília); `null` desliga |
 | `excluir_se_tiver` | palavras que descartam um anúncio (branca, peças, usados, vitrine...) |
 | `fontes` | páginas consultadas; dá pra adicionar o link de qualquer produto/busca. `"ativa": false` desliga uma página (Magalu, Casas Bahia e Carrefour bloqueiam o GitHub e o Mercado Livre pede login, mas os preços delas já aparecem via Buscapé/Zoom) |
+
+### PIX e parcelado
+
+O alerta lê, quando a loja informa, o preço no PIX e o melhor parcelamento:
+
+- **Samsung, Fast Shop e Loja Electrolux** (VTEX): o valor no PIX e o maior número de parcelas sem juros.
+- **Amazon**: o preço principal costuma ser o do PIX ("10% off à vista no Pix") e o parcelamento vem logo abaixo.
+- **Buscapé e Zoom**: o preço à vista e o parcelamento da oferta.
+
+As parcelas são trazidas a valor de hoje com `rendimento_mensal_pct` (o dinheiro fica rendendo até cada
+vencimento). Se parcelar sair mais barato que pagar à vista, a mensagem marca "✅ parcelar sai melhor" e é esse
+valor que conta para o preço-alvo. Exemplo: 18x de R$ 286,49 sem juros valem ~R$ 4.763 hoje, menos que
+R$ 4.899 no PIX.
 
 ## Outros produtos
 
