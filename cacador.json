@@ -14,7 +14,10 @@
 
   "gemini": {
     "modelos": ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"],
-    "pesquisa_google": true
+    "pesquisa_google": true,
+    "raciocinio": "low",
+    "raciocinio_bug": null,
+    "max_analises_por_dia": 80
   },
   "nota_minima": 7,
   "max_analises_por_rodada": 6,
