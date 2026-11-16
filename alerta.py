@@ -617,7 +617,8 @@ def main() -> int:
     estado = carrega_estado()
     # mudou modelo/cor/voltagem? o histórico antigo não vale mais para comparar quedas
     filtro = json.dumps([CFG["palavras_chave"], CFG.get("cores_aceitas"), CFG.get("voltagem")])
-    if estado.get("filtro") != filtro:
+    comecando = estado.get("filtro") != filtro  # produto novo (ou filtro mudou): avisa uma vez
+    if comecando:
         estado = {"filtro": filtro}
 
     ofertas: list[Oferta] = []
@@ -658,6 +659,9 @@ def main() -> int:
         envia(f"🧪 Teste do alerta — {CFG['produto']}", ofertas, notas + rodape + falhas)
     elif motivo:
         envia(motivo, ofertas, notas + rodape)
+    elif comecando:
+        alvo = [f"Alvo: {brl(CFG['preco_alvo'])}"] if CFG.get("preco_alvo") else []
+        envia(f"✅ Comecei a acompanhar — {CFG['produto']}", ofertas, alvo + rodape + falhas)
     elif (CFG.get("resumo_diario_hora") is not None and agora.hour >= CFG["resumo_diario_hora"]
           and estado.get("ultimo_resumo") != hoje):
         recorde = estado.get("menor_ja_visto")

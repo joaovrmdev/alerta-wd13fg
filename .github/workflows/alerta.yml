@@ -24,7 +24,7 @@ concurrency:
 jobs:
   verificar:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       MODO: ${{ github.event_name == 'pull_request' && 'simulacao' || inputs.modo || 'verificar' }}
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -50,14 +50,17 @@ jobs:
           key: estado-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: estado-
 
-      - name: Verifica os preços — lava e seca WD13FG
-        run: python alerta.py "$MODO"
-
-      - name: Verifica os preços — balcão Madesa Glamy
-        if: ${{ !cancelled() }}
-        run: python alerta.py "$MODO"
-        env:
-          CONFIG: config-glamy.json
+      # um produto por arquivo: config.json (lava e seca) e cada config-*.json.
+      # Se um produto der erro, os outros continuam; no fim o passo falha para aparecer no Actions.
+      - name: Verifica os preços de cada produto
+        run: |
+          falhou=0
+          for cfg in config.json config-*.json; do
+            echo "::group::$cfg"
+            CONFIG="$cfg" python alerta.py "$MODO" || { echo "::error::$cfg falhou"; falhou=1; }
+            echo "::endgroup::"
+          done
+          exit $falhou
 
       - name: Guarda o histórico de preços
         if: always() && github.event_name != 'pull_request'

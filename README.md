@@ -45,10 +45,19 @@ Telegram com os preços atuais e quais lojas ele conseguiu ler.
 
 ## Outros produtos
 
-O mesmo robô também acompanha o **balcão Madesa Glamy 150 cm com tampo** (`config-glamy.json`), alvo de
-R$ 600. Cada produto tem o seu arquivo de configuração e o seu próprio histórico; no workflow, cada um é
-um passo com `CONFIG: <arquivo>`. Para acompanhar mais um produto, copie um desses arquivos, ajuste e
-adicione um passo igual.
+O mesmo robô também acompanha (todos em 127V):
+
+| Arquivo | Produto | Alvo | Resumo diário |
+|---|---|---|---|
+| `config-glamy.json` | balcão Madesa Glamy 150 cm com tampo | R$ 600 | sim |
+| `config-multiprocessador.json` | multiprocessador Mondial Turbo Chef 9 em 1 (MPN-01-BF) | R$ 250 | não |
+| `config-panela-pe38.json` | panela de pressão elétrica Mondial Master Cooker 5L (PE-38) | R$ 299 | não |
+| `config-panela-pcc20.json` | panela de pressão elétrica Electrolux 6L (PCC20) | R$ 399 | não |
+
+Cada produto tem o seu arquivo e o seu próprio histórico em `estado/`. O workflow roda `config.json` e todos
+os `config-*.json`, então para acompanhar mais um produto basta copiar um desses arquivos e ajustar. Na
+primeira verificação de um produto novo chega uma mensagem "✅ Comecei a acompanhar" com os preços atuais;
+depois disso, os que estão sem resumo diário só mandam mensagem quando o preço chega no alvo ou cai de repente.
 
 Campos extras que um produto pode usar:
 
