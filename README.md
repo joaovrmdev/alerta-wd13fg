@@ -1,6 +1,7 @@
 # Alerta de promoção — Samsung Lava e Seca WD13FG
 
-Robô que roda de graça no GitHub Actions a cada 20 minutos, lê o preço da WD13FG em várias lojas
+Robô que roda de graça no GitHub Actions a cada 30 minutos (disparado pelo cron-job.org, veja
+[Disparo](#disparo-cron-joborg)), lê o preço da WD13FG em várias lojas
 (versões inox e black; via Buscapé e Zoom, que comparam várias lojas, além de Amazon, Samsung Shop e Fast Shop) e te avisa
 no **Telegram** (e opcionalmente Discord/WhatsApp) quando:
 
@@ -95,12 +96,48 @@ promoções novas de toda a internet e avisa no Telegram quando alguma tem cara 
    `GEMINI_API_KEY`. Não cole a chave em nenhum arquivo do repositório.
 
 Na primeira rodada chega "✅ Caçador de preço bugado ligado", dizendo quantas ofertas ele leu de cada fonte e
-se a IA está funcionando. Para testar na hora: **Actions → Alerta WD13FG → Run workflow** com `teste` (isso
-também manda o teste dos alertas de preço). Os modelos tentados ficam em `gemini.modelos`, em ordem; o primeiro
-que existir para a sua chave é usado.
+se a IA está funcionando. Para testar na hora: **Actions → Caçador de preço bugado → Run workflow** com
+`teste`. Os modelos tentados ficam em `gemini.modelos`, em ordem; o primeiro que existir para a sua chave é usado.
 
-O caçador roda a cada disparo do workflow (de hora em hora, das 8h às 23h, pela tarefa agendada que dispara o
-alerta). Bug de preço às vezes dura minutos, então ele pega muitos, mas não todos.
+O caçador tem o próprio workflow (`cacador.yml`) e roda a cada 10 minutos, 24 horas por dia.
+
+## Disparo (cron-job.org)
+
+O agendamento do próprio GitHub atrasa e pula muitos horários (às vezes roda uma vez a cada várias horas),
+então quem dispara os dois workflows é o [cron-job.org](https://cron-job.org), que é gratuito. Ele chama a API
+do GitHub com um token que só tem permissão para disparar o Actions deste repositório.
+
+### 1. Token do GitHub (só para disparar)
+**Settings** (do seu perfil) → **Developer settings** → **Personal access tokens** → **Fine-grained tokens** →
+**Generate new token**:
+- *Repository access*: **Only select repositories** → `alerta-wd13fg`
+- *Permissions → Repository permissions → Actions*: **Read and write** (nada mais)
+- *Expiration*: até 1 ano. Quando vencer, o cron-job.org começa a falhar (e avisa por e-mail); é só gerar outro.
+
+O token aparece uma vez só: copie direto para o cron-job.org e não guarde em nenhum arquivo do repositório.
+
+### 2. Dois cronjobs no cron-job.org
+Em **Create cronjob**, para cada linha da tabela:
+
+| Título | URL | Frequência |
+|---|---|---|
+| Caçador de preço bugado | `https://api.github.com/repos/joaovrmdev/alerta-wd13fg/actions/workflows/cacador.yml/dispatches` | a cada 10 minutos |
+| Alertas de preço | `https://api.github.com/repos/joaovrmdev/alerta-wd13fg/actions/workflows/alerta.yml/dispatches` | a cada 30 minutos |
+
+Na aba **Advanced** de cada um:
+- *Request method*: **POST**
+- *Headers*:
+  - `Accept`: `application/vnd.github+json`
+  - `Authorization`: `Bearer <o token>`
+  - `X-GitHub-Api-Version`: `2022-11-28`
+  - `Content-Type`: `application/json`
+- *Request body*: `{"ref":"main","inputs":{"modo":"verificar"}}`
+
+Use **Test run**: a resposta certa é `204` (ou `200`), e em seguida aparece uma execução nova na aba Actions.
+Se vier `401`/`403`, o token está errado ou sem a permissão de Actions; `404`, a URL ou o nome do workflow.
+
+Intervalos menores que esses funcionam, mas os termos do GitHub Actions pedem uso ligado ao projeto e sem
+sobrecarga, e as lojas também bloqueiam quem consulta demais.
 
 ## Canais opcionais
 
@@ -115,5 +152,5 @@ alerta). Bug de preço às vezes dura minutos, então ele pega muitos, mas não 
 - Algumas lojas bloqueiam robôs às vezes; o resumo diário mostra quais falharam. Basta uma ou duas
   funcionando (Buscapé/Zoom já comparam várias lojas) para o alerta valer.
 - Preço marcado como "estimado" veio de leitura do texto da página: confira no link antes de comprar.
-- O GitHub pausa agendamentos de repositórios públicos sem nenhuma atividade por 60 dias. Se acontecer,
-  é só reativar na aba Actions.
+- O GitHub pausa agendamentos de repositórios públicos sem nenhuma atividade por 60 dias (isso só afeta o
+  agendamento reserva; o disparo pelo cron-job.org continua). Se acontecer, é só reativar na aba Actions.
