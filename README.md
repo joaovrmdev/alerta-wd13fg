@@ -101,6 +101,17 @@ se a IA está funcionando. Para testar na hora: **Actions → Caçador de preço
 
 O caçador tem o próprio workflow (`cacador.yml`) e roda a cada 10 minutos, 24 horas por dia.
 
+### Mandar as ofertas para um grupo do Telegram
+
+As ofertas do caçador podem ir para um grupo; os avisos técnicos (IA fora do ar, fontes falhando) continuam
+chegando só no seu chat com o bot.
+
+1. No Telegram, crie o grupo, adicione o bot e quem mais quiser, e mande `/start` lá dentro.
+2. Em até 24 horas: **Actions → Caçador de preço bugado → Run workflow** com `grupo`. O bot manda o ID
+   dentro do próprio grupo (o número não aparece no log, que é público).
+3. Crie o secret `TELEGRAM_CHAT_ID_CACADOR` com esse número, com o sinal de menos.
+4. Rode `teste` para ver uma oferta chegar no grupo. Para voltar ao chat privado, é só apagar o secret.
+
 ## Disparo (cron-job.org)
 
 O agendamento do próprio GitHub atrasa e pula muitos horários (às vezes roda uma vez a cada várias horas),

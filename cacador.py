@@ -470,22 +470,69 @@ def gemini(o: Oferta, estado: dict, agora: datetime) -> dict:
 
 
 # ------------------------------------------------------------------------ Telegram
-def envia(texto_html: str) -> bool:
+def destino(so_para_mim: bool = False) -> str | None:
+    """Ofertas vão para o grupo (TELEGRAM_CHAT_ID_CACADOR), se houver; avisos técnicos, só para você."""
+    if so_para_mim:
+        return os.getenv("TELEGRAM_CHAT_ID")
+    return os.getenv("TELEGRAM_CHAT_ID_CACADOR") or os.getenv("TELEGRAM_CHAT_ID")
+
+
+def envia(texto_html: str, so_para_mim: bool = False, chat: str | int | None = None) -> bool:
     if SIMULAR:
         print("\n[simulação] a mensagem seria:\n" + re.sub(r"<[^>]+>", "", texto_html) + "\n")
         return False
-    token, chat = os.getenv("TELEGRAM_TOKEN"), os.getenv("TELEGRAM_CHAT_ID")
+    token, chat = os.getenv("TELEGRAM_TOKEN"), chat or destino(so_para_mim)
     if not (token and chat):
         print("\n[sem Telegram configurado] a mensagem seria:\n" + re.sub(r"<[^>]+>", "", texto_html) + "\n")
         return False
+    corpo = {"chat_id": chat, "parse_mode": "HTML", "disable_web_page_preview": True, "text": texto_html[:4000]}
     try:
-        r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", timeout=20, json={
-            "chat_id": chat, "parse_mode": "HTML", "disable_web_page_preview": True, "text": texto_html[:4000]})
+        for _ in range(2):
+            r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", timeout=20, json=corpo)
+            novo_id = (r.json().get("parameters") or {}).get("migrate_to_chat_id") if r.status_code == 400 else None
+            if not novo_id:
+                break
+            # o Telegram troca o ID quando um grupo vira "supergrupo"; manda para o novo e segue
+            print("[aviso] o grupo mudou de ID (virou supergrupo). Rode o modo 'grupo' e atualize "
+                  "o secret TELEGRAM_CHAT_ID_CACADOR.")
+            corpo["chat_id"] = novo_id
         r.raise_for_status()
         return True
     except Exception as e:  # noqa: BLE001
         print(f"[erro] Telegram: {e}")
         return False
+
+
+def descobre_grupo() -> int:
+    """Procura os grupos onde o bot foi adicionado e manda o ID dentro de cada um (não aparece no log)."""
+    token = os.getenv("TELEGRAM_TOKEN")
+    if not token:
+        print("TELEGRAM_TOKEN não configurado")
+        return 1
+    r = requests.get(f"https://api.telegram.org/bot{token}/getUpdates", timeout=20)
+    r.raise_for_status()
+    grupos: dict[int, str] = {}
+    for u in r.json().get("result", []):
+        for chave in ("message", "edited_message", "my_chat_member", "channel_post"):
+            msg = u.get(chave) or {}
+            c = msg.get("chat") or {}
+            if c.get("type") in ("group", "supergroup", "channel"):
+                grupos[c["id"]] = c.get("title") or "sem nome"
+            if msg.get("migrate_to_chat_id"):  # grupo virou supergrupo: vale o ID novo
+                grupos.pop(c.get("id"), None)
+                grupos[msg["migrate_to_chat_id"]] = c.get("title") or "sem nome"
+    print(f"Grupos encontrados: {len(grupos)} ({', '.join(grupos.values()) or 'nenhum'})")
+    if not grupos:
+        envia("<b>Não achei nenhum grupo</b>\n" + esc(
+            "Adicione o bot ao grupo, mande /start lá dentro e rode o modo 'grupo' de novo "
+            "(o Telegram só guarda isso por 24 horas)."), so_para_mim=True)
+        return 0
+    for gid, titulo in grupos.items():
+        envia(f"<b>✅ Grupo encontrado: {esc(titulo)}</b>\n\n"
+              f"ID: <code>{gid}</code>\n\n"
+              + esc("No GitHub, crie o secret TELEGRAM_CHAT_ID_CACADOR com esse número "
+                    "(com o sinal de menos). Depois disso, os alertas do caçador chegam aqui."), chat=gid)
+    return 0
 
 
 def mensagem(o: Oferta, a: dict | None, teste: bool = False) -> str:
@@ -542,6 +589,8 @@ def salva_estado(estado: dict, agora: datetime) -> None:
 def main() -> int:
     global SIMULAR
     modo = (sys.argv[1] if len(sys.argv) > 1 else "verificar").lower()
+    if modo == "grupo":
+        return descobre_grupo()
     SIMULAR = modo == "simulacao"
     teste = modo in ("teste", "simulacao")
     agora = datetime.now(BRT)
@@ -630,7 +679,7 @@ def main() -> int:
             avisos += envia(mensagem(o, a, teste=teste))
 
     if modo == "teste":
-        envia(esc(checa_gemini(estado)))
+        envia(esc(checa_gemini(estado)), so_para_mim=True)
 
     if ofertas:
         estado["falhas_seguidas"] = 0
@@ -653,11 +702,12 @@ def main() -> int:
             envia("\n".join(linhas))
             estado["iniciado"] = agora.isoformat()
         elif sem_ia and estado.get("aviso_sem_ia") != agora.date().isoformat():
-            envia(f"<b>⚠️ Caçador sem IA</b>\n{esc(sem_ia)}. Enquanto isso, aviso só os candidatos mais fortes.")
+            envia(f"<b>⚠️ Caçador sem IA</b>\n{esc(sem_ia)}. Enquanto isso, aviso só os candidatos mais fortes.",
+                  so_para_mim=True)
             estado["aviso_sem_ia"] = agora.date().isoformat()
         if estado["falhas_seguidas"] == 3:
             envia("<b>⚠️ O caçador não conseguiu ler nenhuma fonte nas últimas 3 rodadas</b>\n"
-                  + esc("; ".join(falhas)))
+                  + esc("; ".join(falhas)), so_para_mim=True)
 
     print(f"\n{avisos} aviso(s) enviado(s)")
     if not SIMULAR:
