@@ -180,18 +180,34 @@ def promobit(cfg: dict) -> list[Oferta]:
     return out
 
 
+def gatry_lista(sopa: BeautifulSoup) -> list[Oferta]:
+    """Layout atual do Gatry: <li><a href="/promocoes/<id>/<slug>">Título</a> — R$ 915,00 · Loja</li>"""
+    out = []
+    for li in sopa.select("li"):
+        a = li.select_one('a[href^="/promocoes/"], a[href*="gatry.com/promocoes/"]')
+        m = re.search(r"/promocoes/([0-9a-fA-F-]{6,}|\d+)", a.get("href", "")) if a else None
+        if not m:
+            continue
+        titulo = " ".join(a.get_text(" ").split())
+        resto = " ".join(li.get_text(" ").split())[len(titulo):]
+        loja = re.search(r"[·•|]\s*([^·•|]{2,40})\s*$", resto)
+        if titulo:
+            out.append(Oferta(fonte="Gatry", id=m.group(1), titulo=titulo,
+                              url=urljoin("https://gatry.com", re.sub(r"\?.*$", "", a["href"])),
+                              preco=preco_br(PRECO_RE.search(resto).group(1)) if PRECO_RE.search(resto) else None,
+                              loja=loja.group(1).strip() if loja else None))
+    return out
+
+
 def gatry(cfg: dict) -> list[Oferta]:
-    """Gatry: /promocoes?page=N, HTML do servidor com um <article> por promoção."""
+    """Gatry: /promocoes?page=N. Lê o layout atual (lista) e, se não achar, o antigo (<article>)."""
     out = []
     for p in range(1, cfg.get("paginas", 2) + 1):
-        pagina = baixa("https://gatry.com/promocoes" + (f"?page={p}" if p > 1 else ""))
-        sopa = BeautifulSoup(pagina, "html.parser")
-        if DEPURAR and p == 1:
-            titulo = sopa.title.get_text(" ").strip() if sopa.title else ""
-            print(f"          [diag] gatry: {len(pagina)} bytes | título {titulo[:80]!r} | "
-                  f"{len(sopa.select('article'))} <article> | {pagina.count('/promocoes/')} links /promocoes/")
-            i = pagina.find("/promocoes/")
-            print(f"          [diag] gatry trecho: {pagina[max(0, i - 700):i + 500]!r}")
+        sopa = BeautifulSoup(baixa("https://gatry.com/promocoes" + (f"?page={p}" if p > 1 else "")), "html.parser")
+        lista = gatry_lista(sopa)
+        if lista:
+            out += lista
+            continue
         for art in sopa.select("article"):
             a = art.select_one(".description h3 a")
             titulo = " ".join(a.get_text(" ").split()) if a else ""
@@ -529,6 +545,7 @@ def main() -> int:
             falhas.append(f"{nome}: {str(e)[:120]}")
             print(f"[falha] {nome}: {e}")
 
+    ofertas = list({o.chave: o for o in reversed(ofertas)}.values())[::-1]  # sem repetidas (ex.: página 2 igual à 1)
     idade_max = timedelta(hours=CFG.get("idade_maxima_horas", 6))
     candidatos: list[Oferta] = []
     for o in ofertas:
