@@ -119,12 +119,12 @@ O caçador tem o próprio workflow (`cacador.yml`) e roda a cada 10 minutos, 24 
 
 O que mais pesa na conta do Gemini é o "raciocínio" (tokens que o modelo gera pensando antes de responder).
 
-- `gemini.raciocinio`: nível usado no dia a dia (`"low"` corta o raciocínio; numa comparação com ofertas reais o
-  veredito e a nota ficaram iguais, mas o "preço normal" fica menos preciso porque o modelo quase não pesquisa).
-- `gemini.raciocinio_bug`: nível para candidatos com palavra de bug ("bug", "erro de preço"...). `null` usa o
-  padrão do modelo, que pensa mais e pesquisa no Google. São raros e são os que mais importam.
-- `gemini.max_analises_por_dia`: teto diário. Passou dele, o que não tem palavra de bug fica de fora (nada chega
-  ao grupo sem análise) e você recebe um aviso no privado. Candidatos com palavra de bug sempre são analisados.
+- `gemini.raciocinio`: nível de raciocínio no dia a dia. `null` usa o padrão do modelo (melhor análise);
+  `"low"` sai uns 70% mais barato, com o mesmo veredito nos testes, mas o "preço normal" fica menos preciso.
+- `gemini.raciocinio_bug`: o mesmo, só para candidatos com palavra de bug ("bug", "erro de preço"...).
+- `gemini.max_analises_por_dia`: teto diário (60 ≈ R$ 2,40 por dia no padrão). Passou dele, o que não tem
+  palavra de bug fica de fora (nada chega ao grupo sem análise) e você recebe um aviso no privado. Candidatos
+  com palavra de bug sempre são analisados.
 
 O log de cada rodada mostra os tokens de cada análise e o total do dia ("IA hoje: ...").
 
