@@ -15,10 +15,17 @@
   "gemini": {
     "modelos": ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"],
     "pesquisa_google": true,
+<<<<<<< HEAD
     "raciocinio": "low",
     "raciocinio_bug": null,
     "max_analises_por_dia": 80
+=======
+    "raciocinio": null,
+    "raciocinio_bug": null,
+    "max_analises_por_dia": 55
+>>>>>>> ia-referencia
   },
+  "referencia_buscape": true,
   "nota_minima": 7,
   "max_analises_por_rodada": 6,
   "avisar_sem_ia": true
