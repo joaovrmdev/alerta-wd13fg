@@ -3,6 +3,7 @@
   "palavras_chave": ["MPN-01-BF", "Turbo Chef 9 em 1"],
   "cores_aceitas": [],
   "preco_alvo": 250,
+  "rendimento_mensal_pct": 0.85,
   "voltagem": "127V",
   "avisar_queda_percentual": 7,
   "repetir_alerta_horas": 24,
