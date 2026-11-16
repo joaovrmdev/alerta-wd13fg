@@ -14,4 +14,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: DEPURAR=1 python cacador.py simulacao
+      - run: python cacador.py teste

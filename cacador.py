@@ -400,6 +400,35 @@ def extrai_json(texto: str) -> dict | None:
     return d
 
 
+def checa_gemini(estado: dict) -> str:
+    """Confere a chave e quais modelos da lista existem (consulta barata, sem gerar texto)."""
+    chave = os.getenv("GEMINI_API_KEY")
+    if not chave:
+        return "⚠️ Sem IA por enquanto: a chave do Gemini (GEMINI_API_KEY) ainda não foi cadastrada."
+    try:
+        nomes, pagina = set(), ""
+        for _ in range(5):
+            r = requests.get("https://generativelanguage.googleapis.com/v1beta/models",
+                             params={"pageSize": 200, **({"pageToken": pagina} if pagina else {})},
+                             headers={"x-goog-api-key": chave}, timeout=30)
+            if r.status_code in (400, 401, 403):
+                return f"⚠️ O Google recusou a chave do Gemini (HTTP {r.status_code}). Confira o secret GEMINI_API_KEY."
+            r.raise_for_status()
+            d = r.json()
+            nomes |= {m.get("name", "").split("/")[-1] for m in d.get("models", [])}
+            pagina = d.get("nextPageToken")
+            if not pagina:
+                break
+    except Exception as e:  # noqa: BLE001
+        return f"⚠️ Não consegui conferir o Gemini agora ({type(e).__name__}); tento de novo na próxima oferta."
+    disponiveis = [m for m in CFG["gemini"]["modelos"] if m in nomes]
+    if not disponiveis:
+        return ("⚠️ A chave do Gemini funciona, mas nenhum modelo da lista em cacador.json existe para ela: "
+                + ", ".join(CFG["gemini"]["modelos"]))
+    estado["modelo_gemini"] = disponiveis[0]
+    return f"🤖 IA ok: vou usar o {disponiveis[0]}."
+
+
 def gemini(o: Oferta, estado: dict, agora: datetime) -> dict:
     chave = os.getenv("GEMINI_API_KEY")
     if not chave:
@@ -600,6 +629,9 @@ def main() -> int:
         if teste or bom or (a is None and CFG.get("avisar_sem_ia", True) and forte(o)):
             avisos += envia(mensagem(o, a, teste=teste))
 
+    if modo == "teste":
+        envia(esc(checa_gemini(estado)))
+
     if ofertas:
         estado["falhas_seguidas"] = 0
     else:
@@ -614,8 +646,10 @@ def main() -> int:
                           f"(nota {CFG.get('nota_minima', 7)}+ de 10).")]
             if falhas:
                 linhas.append(esc("Com problema: " + "; ".join(falhas)))
-            if sem_ia:
-                linhas.append(esc(f"⚠️ Sem IA por enquanto: {sem_ia}. Até lá, aviso só os candidatos mais fortes."))
+            situacao_ia = checa_gemini(estado)
+            linhas.append(esc(situacao_ia))
+            if situacao_ia.startswith("⚠️"):
+                linhas.append(esc("Enquanto isso, aviso só os candidatos mais fortes, marcados como sem análise."))
             envia("\n".join(linhas))
             estado["iniciado"] = agora.isoformat()
         elif sem_ia and estado.get("aviso_sem_ia") != agora.date().isoformat():
