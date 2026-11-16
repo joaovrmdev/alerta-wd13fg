@@ -20,9 +20,9 @@ cands.sort(key=lambda o: ("palavra de bug" not in o.motivos, -(o.desconto or 0))
 print(len(ofertas), "ofertas,", len(cands), "candidatos")
 modelo = c.CFG["gemini"]["modelos"][0]
 chave = os.environ["GEMINI_API_KEY"]
-for o in cands[:2]:
+for o in cands[2:6]:
     print("\n=====", o.fonte, c.brl(o.preco), o.desconto, "% |", o.titulo[:90], "|", o.motivos)
-    for nivel in (None, "low", "minimal"):
+    for nivel in (None, "medium", "low"):
         corpo = {"systemInstruction": {"parts": [{"text": c.INSTRUCOES}]},
                  "contents": [{"role": "user", "parts": [{"text": c.descreve(o, agora)}]}],
                  "tools": [{"google_search": {}}]}
