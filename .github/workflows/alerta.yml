@@ -1,9 +1,9 @@
 name: Alerta WD13FG
 
 on:
+  # Quem dispara de verdade é o cron-job.org (a cada 30 minutos, chamando a API do GitHub).
+  # O agendamento abaixo é só reserva: o GitHub costuma atrasar ou pular esses horários.
   schedule:
-    # a cada 20 minutos, fora dos minutos "redondos": o GitHub atrasa ou pula
-    # agendamentos no começo de cada hora, quando a fila está cheia
     - cron: "7,27,47 * * * *"
   pull_request:            # nos pull requests só simula (não manda mensagem)
   workflow_dispatch:
@@ -68,40 +68,3 @@ jobs:
         with:
           path: estado
           key: estado-${{ github.run_id }}-${{ github.run_attempt }}
-
-  # Caçador de preço bugado (cacador.py / cacador.json): roda junto, a cada disparo, com o próprio histórico.
-  cacador:
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    env:
-      MODO: ${{ github.event_name == 'pull_request' && 'simulacao' || inputs.modo || 'verificar' }}
-      TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
-      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      DEPURAR: ${{ github.event_name == 'pull_request' && '1' || '' }}
-    steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-          cache: pip
-
-      - run: pip install -r requirements.txt
-
-      - name: Recupera as ofertas já vistas
-        uses: actions/cache/restore@v4
-        with:
-          path: estado-cacador
-          key: cacador-${{ github.run_id }}-${{ github.run_attempt }}
-          restore-keys: cacador-
-
-      - name: Procura preço bugado
-        run: python cacador.py "$MODO"
-
-      - name: Guarda as ofertas já vistas
-        if: always() && github.event_name != 'pull_request'
-        uses: actions/cache/save@v4
-        with:
-          path: estado-cacador
-          key: cacador-${{ github.run_id }}-${{ github.run_attempt }}

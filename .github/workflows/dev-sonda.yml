@@ -1,11 +1,11 @@
-name: Teste temporário do caçador
+name: Sonda temporária (PIX e parcelado)
 on:
   push:
     branches: [cacador-dev]
 permissions:
   contents: read
 jobs:
-  simula:
+  sonda:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -14,4 +14,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python cacador.py teste
+      - run: python sonda_pix.py
