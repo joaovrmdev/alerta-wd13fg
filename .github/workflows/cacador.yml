@@ -9,9 +9,9 @@ on:
   workflow_dispatch:
     inputs:
       modo:
-        description: "verificar = rodada normal | teste = manda a análise do melhor candidato agora"
+        description: "verificar = rodada normal | teste = manda a análise do melhor candidato agora | grupo = descobre o ID do grupo do Telegram"
         type: choice
-        options: [verificar, teste]
+        options: [verificar, teste, grupo]
         default: verificar
 
 permissions:
@@ -29,6 +29,7 @@ jobs:
       MODO: ${{ github.event_name == 'pull_request' && 'simulacao' || inputs.modo || 'verificar' }}
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
       TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      TELEGRAM_CHAT_ID_CACADOR: ${{ secrets.TELEGRAM_CHAT_ID_CACADOR }}  # opcional: grupo que recebe as ofertas
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       DEPURAR: ${{ github.event_name == 'pull_request' && '1' || '' }}
     steps:
