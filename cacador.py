@@ -429,6 +429,29 @@ def checa_gemini(estado: dict) -> str:
     return f"🤖 IA ok: vou usar o {disponiveis[0]}."
 
 
+def uso_da_resposta(resposta: dict, nivel: str | None) -> dict:
+    u = resposta.get("usageMetadata") or {}
+    cand = (resposta.get("candidates") or [{}])[0]
+    return {"entrada": u.get("promptTokenCount", 0), "cache": u.get("cachedContentTokenCount", 0),
+            "saida": u.get("candidatesTokenCount", 0), "pensamento": u.get("thoughtsTokenCount", 0),
+            "buscas": len((cand.get("groundingMetadata") or {}).get("webSearchQueries") or []),
+            "raciocinio": nivel or "padrão"}
+
+
+def conta_uso(estado: dict, agora: datetime, uso: dict | None) -> dict:
+    """Soma o uso do dia (zera à meia-noite) para controlar o gasto."""
+    dia = estado.get("ia_dia") or {}
+    if dia.get("dia") != agora.date().isoformat():
+        dia = {"dia": agora.date().isoformat(), "analises": 0, "entrada": 0, "saida": 0, "pensamento": 0,
+               "buscas": 0}
+    if uso:
+        dia["analises"] += 1
+        for k in ("entrada", "saida", "pensamento", "buscas"):
+            dia[k] += uso.get(k, 0)
+    estado["ia_dia"] = dia
+    return dia
+
+
 def gemini(o: Oferta, estado: dict, agora: datetime) -> dict:
     chave = os.getenv("GEMINI_API_KEY")
     if not chave:
@@ -437,15 +460,25 @@ def gemini(o: Oferta, estado: dict, agora: datetime) -> dict:
                                  + CFG["gemini"]["modelos"]))
     base = {"systemInstruction": {"parts": [{"text": INSTRUCOES}]},
             "contents": [{"role": "user", "parts": [{"text": descreve(o, agora)}]}]}
+    # raciocínio é o que mais pesa na conta: "low" no dia a dia; candidatos com cara de bug usam o padrão do
+    # modelo (pensa mais e pesquisa no Google), porque são raros e são os que mais importam
+    nivel = CFG["gemini"].get("raciocinio_bug" if "palavra de bug" in o.motivos else "raciocinio")
     opcoes_busca = [True, False] if CFG["gemini"].get("pesquisa_google", True) else [False]
     ultimo = "nenhum modelo respondeu"
     for modelo in modelos:
         for com_busca in opcoes_busca:
             corpo = dict(base, **({"tools": [{"google_search": {}}]} if com_busca else {}))
+            if nivel:
+                corpo["generationConfig"] = {"thinkingConfig": {"thinkingLevel": nivel}}
             try:
                 r = requests.post(
                     f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
                     headers={"x-goog-api-key": chave, "Content-Type": "application/json"}, json=corpo, timeout=120)
+                if r.status_code == 400 and nivel and "thinking" in r.text.lower():  # modelo não aceita o nível
+                    corpo.pop("generationConfig", None)
+                    r = requests.post(
+                        f"https://generativelanguage.googleapis.com/v1beta/models/{modelo}:generateContent",
+                        headers={"x-goog-api-key": chave, "Content-Type": "application/json"}, json=corpo, timeout=120)
             except requests.RequestException as e:
                 ultimo = f"{modelo}: {type(e).__name__}"
                 break
@@ -459,10 +492,13 @@ def gemini(o: Oferta, estado: dict, agora: datetime) -> dict:
             if r.status_code >= 400:
                 ultimo = f"{modelo}: HTTP {r.status_code} {r.text[:160]}"
                 continue  # tenta sem a pesquisa do Google; se já era sem, vai para o próximo modelo
-            partes = ((r.json().get("candidates") or [{}])[0].get("content") or {}).get("parts") or []
+            resposta = r.json()
+            cand = (resposta.get("candidates") or [{}])[0]
+            partes = (cand.get("content") or {}).get("parts") or []
             dados = extrai_json("".join(p.get("text", "") for p in partes))
             if dados:
                 dados["_modelo"] = modelo
+                dados["_uso"] = uso_da_resposta(resposta, nivel if "generationConfig" in corpo else None)
                 estado["modelo_gemini"] = modelo
                 return dados
             ultimo = f"{modelo}: resposta sem JSON"
@@ -660,16 +696,31 @@ def main() -> int:
     avisos = 0
     limite = 1 if modo == "teste" else CFG.get("max_analises_por_rodada", 6)
     inicio = time.monotonic()
+    teto = CFG["gemini"].get("max_analises_por_dia")
     for o in candidatos[:limite]:
         a = None
         if time.monotonic() - inicio > 480:  # não estourar o tempo do GitHub; o resto fica para a próxima rodada
             print("  [tempo] parei as análises por hoje nesta rodada")
             analisados.pop(chave_titulo(o), None)
             break
+        dia = conta_uso(estado, agora, None)
+        if teto and dia["analises"] >= teto and not teste and "palavra de bug" not in o.motivos:
+            # orçamento do dia acabou: o que não tem cara de bug fica de fora (nada chega ao grupo sem análise);
+            # candidatos com palavra de bug são raros e sempre passam pela IA
+            print(f"  [teto] {dia['analises']} análises hoje (limite {teto}); pulei: {o.titulo[:70]}")
+            if estado.get("aviso_teto") != dia["dia"]:
+                envia(f"<b>⚠️ Caçador: limite diário da IA atingido</b>\n{esc(f'{teto} análises hoje')}. "
+                      + esc("Até a meia-noite, só os candidatos com cara de bug passam pela IA."), so_para_mim=True)
+                estado["aviso_teto"] = dia["dia"]
+            continue
         if sem_ia is None:
             try:
                 a = gemini(o, estado, agora)
+                u = a.get("_uso") or {}
+                conta_uso(estado, agora, u)
                 print(f"  [IA {a.get('_modelo')}] {a['veredito']} {a['nota']}/10 | {a.get('resumo', '')[:120]}")
+                print(f"      tokens: entrada {u.get('entrada')} (cache {u.get('cache')}), saída {u.get('saida')}, "
+                      f"raciocínio {u.get('pensamento')} [{u.get('raciocinio')}], buscas {u.get('buscas')}")
             except SemIA as e:
                 sem_ia = str(e)
                 print(f"  [sem IA] {sem_ia}")
@@ -709,6 +760,10 @@ def main() -> int:
             envia("<b>⚠️ O caçador não conseguiu ler nenhuma fonte nas últimas 3 rodadas</b>\n"
                   + esc("; ".join(falhas)), so_para_mim=True)
 
+    dia = conta_uso(estado, agora, None)
+    if dia["analises"]:
+        print(f"IA hoje: {dia['analises']} análises, {dia['entrada']} tokens de entrada, "
+              f"{dia['saida'] + dia['pensamento']} de saída (com raciocínio), {dia['buscas']} buscas no Google")
     print(f"\n{avisos} aviso(s) enviado(s)")
     if not SIMULAR:
         salva_estado(estado, agora)

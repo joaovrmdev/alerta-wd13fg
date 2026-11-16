@@ -115,6 +115,19 @@ se a IA está funcionando. Para testar na hora: **Actions → Caçador de preço
 
 O caçador tem o próprio workflow (`cacador.yml`) e roda a cada 10 minutos, 24 horas por dia.
 
+### Custo da IA
+
+O que mais pesa na conta do Gemini é o "raciocínio" (tokens que o modelo gera pensando antes de responder).
+
+- `gemini.raciocinio`: nível usado no dia a dia (`"low"` corta o raciocínio; numa comparação com ofertas reais o
+  veredito e a nota ficaram iguais, mas o "preço normal" fica menos preciso porque o modelo quase não pesquisa).
+- `gemini.raciocinio_bug`: nível para candidatos com palavra de bug ("bug", "erro de preço"...). `null` usa o
+  padrão do modelo, que pensa mais e pesquisa no Google. São raros e são os que mais importam.
+- `gemini.max_analises_por_dia`: teto diário. Passou dele, o que não tem palavra de bug fica de fora (nada chega
+  ao grupo sem análise) e você recebe um aviso no privado. Candidatos com palavra de bug sempre são analisados.
+
+O log de cada rodada mostra os tokens de cada análise e o total do dia ("IA hoje: ...").
+
 ### Mandar as ofertas para um grupo do Telegram
 
 As ofertas do caçador podem ir para um grupo; os avisos técnicos (IA fora do ar, fontes falhando) continuam
