@@ -162,7 +162,12 @@ def promobit(cfg: dict) -> list[Oferta]:
             pct = o.get("offer_discont_percentage")
             desconto = (round(pct) if isinstance(pct, (int, float)) and pct > 0
                         else round((1 - preco / antigo) * 100) if antigo else None)
-            descricao = o.get("offer_description") or o.get("offer_content") or ""
+            descricao = str(o.get("offer_description") or o.get("offer_content") or "")
+            tags = o.get("offer_tags") or []
+            if isinstance(tags, list) and tags:
+                nomes = [t if isinstance(t, str) else " ".join(str(v) for k, v in t.items() if "name" in k or "slug" in k)
+                         for t in tags if isinstance(t, (str, dict))]
+                descricao += " Tags: " + ", ".join(n for n in nomes if n)
             out.append(Oferta(
                 fonte="Promobit", id=str(o.get("offer_id")), titulo=str(o.get("offer_title") or "").strip(),
                 url=f"https://www.promobit.com.br/oferta/{o.get('offer_slug')}/",
@@ -179,7 +184,14 @@ def gatry(cfg: dict) -> list[Oferta]:
     """Gatry: /promocoes?page=N, HTML do servidor com um <article> por promoção."""
     out = []
     for p in range(1, cfg.get("paginas", 2) + 1):
-        sopa = BeautifulSoup(baixa("https://gatry.com/promocoes" + (f"?page={p}" if p > 1 else "")), "html.parser")
+        pagina = baixa("https://gatry.com/promocoes" + (f"?page={p}" if p > 1 else ""))
+        sopa = BeautifulSoup(pagina, "html.parser")
+        if DEPURAR and p == 1:
+            titulo = sopa.title.get_text(" ").strip() if sopa.title else ""
+            print(f"          [diag] gatry: {len(pagina)} bytes | título {titulo[:80]!r} | "
+                  f"{len(sopa.select('article'))} <article> | {pagina.count('/promocoes/')} links /promocoes/")
+            i = pagina.find("/promocoes/")
+            print(f"          [diag] gatry trecho: {pagina[max(0, i - 700):i + 500]!r}")
         for art in sopa.select("article"):
             a = art.select_one(".description h3 a")
             titulo = " ".join(a.get_text(" ").split()) if a else ""
@@ -253,9 +265,11 @@ def telegram(cfg: dict) -> list[Oferta]:
                         else int(pct.group(1)) if pct else None)
             hora = msg.select_one("time[datetime]")
             post = msg["data-post"]
+            loja = re.search(r"(?:📍|🛒|🏬|🏪)\s*([^\n]{2,40})", texto)
             out.append(Oferta(
                 fonte=f"Telegram @{canal}", id=post, titulo=titulo_do_texto(texto),
                 url=f"https://t.me/{post}", preco=preco, preco_antigo=antigo, desconto=desconto,
+                loja=loja.group(1).strip() if loja else None,
                 publicado=quando(hora["datetime"]) if hora else None,
                 texto=(texto + ("\nLinks: " + " ".join(links[:3]) if links else ""))[:1500]))
     return out
