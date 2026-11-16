@@ -1,0 +1,22 @@
+{
+  "fontes": {
+    "promobit": {"ativa": true, "paginas": 3},
+    "gatry": {"ativa": true, "paginas": 2},
+    "telegram": {"ativa": true, "canais": ["pelandobr"]}
+  },
+
+  "palavras_de_bug": ["bug", "bugad", "bugou", "erro de preco", "erro no preco", "preco errado", "preco bugado", "glitch"],
+  "ignorar_palavras": ["bugaboo", "bugatti", "bug's", "inseticida", "repelente", "mata bug"],
+  "desconto_minimo_pct": 70,
+  "preco_antigo_minimo": 100,
+  "quente": {"promobit_curtidas": 40, "desconto_minimo_pct": 50},
+  "idade_maxima_horas": 6,
+
+  "gemini": {
+    "modelos": ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash"],
+    "pesquisa_google": true
+  },
+  "nota_minima": 7,
+  "max_analises_por_rodada": 6,
+  "avisar_sem_ia": true
+}
