@@ -1,0 +1,18 @@
+{
+  "produto": "Multiprocessador Mondial Turbo Chef 9 em 1 (MPN-01-BF)",
+  "palavras_chave": ["MPN-01-BF", "Turbo Chef 9 em 1"],
+  "cores_aceitas": [],
+  "preco_alvo": 250,
+  "voltagem": "127V",
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 24,
+  "resumo_diario_hora": null,
+  "faixa_de_preco_valida": [150, 900],
+  "excluir_se_tiver": ["vermelho", "mpn-01-rf", "mpn01rf", "copo p", "jarra p", "tampa p", "lamina p", "faca p", "disco p", "peca", "reposicao", "usado", "usada", "vitrine", "seminov", "recondicionad", "mostruario", "avariad"],
+  "fontes": [
+    {"nome": "Amazon (busca)", "url": "https://www.amazon.com.br/s?k=mondial+mpn-01-bf"},
+    {"nome": "Buscapé (busca)", "url": "https://www.buscape.com.br/busca/mpn-01-bf"},
+    {"nome": "Zoom (busca)", "url": "https://www.zoom.com.br/busca/mpn-01-bf"},
+    {"nome": "Fast Shop", "url": "https://site.fastshop.com.br/api/catalog_system/pub/products/search?ft=mpn-01-bf"}
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "produto": "Panela de pressão elétrica Electrolux 6L (PCC20)",
+  "palavras_chave": ["PCC20"],
+  "cores_aceitas": [],
+  "preco_alvo": 399,
+  "voltagem": "127V",
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 24,
+  "resumo_diario_hora": null,
+  "faixa_de_preco_valida": [250, 1200],
+  "excluir_se_tiver": ["vedacao", "borracha", "valvula", "reposicao", "peca", "usado", "usada", "vitrine", "seminov", "recondicionad", "mostruario", "avariad"],
+  "fontes": [
+    {"nome": "Amazon (busca)", "url": "https://www.amazon.com.br/s?k=electrolux+pcc20"},
+    {"nome": "Buscapé", "url": "https://www.buscape.com.br/panela-eletrica/panela-de-pressao-eletrica-electrolux-pcc20"},
+    {"nome": "Zoom", "url": "https://www.zoom.com.br/panela-eletrica/panela-de-pressao-eletrica-electrolux-pcc20"},
+    {"nome": "Fast Shop", "url": "https://site.fastshop.com.br/api/catalog_system/pub/products/search?ft=pcc20"},
+    {"nome": "Loja Electrolux", "url": "https://loja.electrolux.com.br/api/catalog_system/pub/products/search?ft=pcc20"}
+  ]
+}

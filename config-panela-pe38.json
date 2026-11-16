@@ -1,0 +1,18 @@
+{
+  "produto": "Panela de pressão elétrica Mondial Master Cooker 5L (PE-38)",
+  "palavras_chave": ["PE-38"],
+  "cores_aceitas": [],
+  "preco_alvo": 299,
+  "voltagem": "127V",
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 24,
+  "resumo_diario_hora": null,
+  "faixa_de_preco_valida": [180, 900],
+  "excluir_se_tiver": ["pe-39", "pe39", "vermelh", "vedacao", "borracha", "valvula", "reposicao", "peca", "usado", "usada", "vitrine", "seminov", "recondicionad", "mostruario", "avariad"],
+  "fontes": [
+    {"nome": "Amazon (busca)", "url": "https://www.amazon.com.br/s?k=mondial+master+cooker+pe-38"},
+    {"nome": "Buscapé", "url": "https://www.buscape.com.br/panela-eletrica/panela-de-pressao-eletrica-5-litros-mondial-master-cooker-pe38"},
+    {"nome": "Zoom", "url": "https://www.zoom.com.br/panela-eletrica/panela-de-pressao-eletrica-5-litros-mondial-master-cooker-pe38"},
+    {"nome": "Fast Shop", "url": "https://site.fastshop.com.br/api/catalog_system/pub/products/search?ft=pe-38"}
+  ]
+}
