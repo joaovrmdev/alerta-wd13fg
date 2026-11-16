@@ -66,6 +66,42 @@ Campos extras que um produto pode usar:
 | `exigir_tambem` | termos que também precisam estar no nome (ex.: `"com tampo"`, para ignorar a versão sem tampo) |
 | `desconto_pix` (em uma fonte) | desconto fixo no PIX que a loja não mostra nos dados (ex.: `12` na Madesa) |
 
+## Caçador de preço bugado (`cacador.py`)
+
+Um segundo robô, no mesmo workflow (job `cacador`), que não acompanha um produto específico: ele lê as
+promoções novas de toda a internet e avisa no Telegram quando alguma tem cara de erro de preço.
+
+1. **Fontes** (configuradas em `cacador.json`):
+   - **Promobit**, pela API pública que o próprio site usa;
+   - **Gatry**, pela página de promoções;
+   - **Canal oficial do Pelando no Telegram** (`t.me/s/pelandobr`, a prévia pública, sem login). O site do
+     Pelando bloqueia robôs vindos do GitHub, por isso o canal. Dá para incluir outros canais públicos em
+     `fontes.telegram.canais` (só o nome do canal).
+2. **Filtro barato**, sem custo: vira candidata a oferta com palavra de bug no título ou no texto ("bug",
+   "bugado", "erro de preço"...), com desconto de `desconto_minimo_pct`% ou mais (e preço antigo de pelo menos
+   `preco_antigo_minimo`), ou muito curtida no Promobit com desconto alto. Ofertas com mais de
+   `idade_maxima_horas` são ignoradas, e a mesma promoção em sites diferentes é analisada uma vez só.
+3. **Opinião do Gemini**: cada candidata vai para o Gemini, que pesquisa no Google o preço normal e a reputação
+   da loja e devolve veredito, nota de 0 a 10 e a chance de a loja honrar (pelo CDC a loja cumpre a oferta, mas
+   pode cancelar quando o erro é grosseiro). Só chega no Telegram o que for "bug provável" ou "promoção muito
+   boa" com nota `nota_minima` ou mais. No máximo `max_analises_por_rodada` análises por rodada.
+4. **Sem a chave do Gemini** (ou se ela falhar), o caçador avisa só os candidatos mais fortes, marcados como
+   "sem análise da IA".
+
+### Ligar a IA
+
+1. Em <https://aistudio.google.com/app/apikey>, crie (ou copie) uma chave da API do Gemini.
+2. No repositório: **Settings → Secrets and variables → Actions → New repository secret**, nome
+   `GEMINI_API_KEY`. Não cole a chave em nenhum arquivo do repositório.
+
+Na primeira rodada chega "✅ Caçador de preço bugado ligado", dizendo quantas ofertas ele leu de cada fonte e
+se a IA está funcionando. Para testar na hora: **Actions → Alerta WD13FG → Run workflow** com `teste` (isso
+também manda o teste dos alertas de preço). Os modelos tentados ficam em `gemini.modelos`, em ordem; o primeiro
+que existir para a sua chave é usado.
+
+O caçador roda a cada disparo do workflow (de hora em hora, das 8h às 23h, pela tarefa agendada que dispara o
+alerta). Bug de preço às vezes dura minutos, então ele pega muitos, mas não todos.
+
 ## Canais opcionais
 
 - **Discord:** no servidor, *Configurações do servidor → Integrações → Webhooks → Novo webhook → Copiar URL*.
