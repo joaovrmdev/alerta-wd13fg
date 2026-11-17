@@ -17,8 +17,10 @@
     "pesquisa_google": true,
     "raciocinio": null,
     "raciocinio_bug": null,
-    "max_analises_por_dia": 60
+    "max_analises_por_dia": 60,
+    "segunda_opiniao_bug": true
   },
+  "ler_comentarios": true,
   "nota_minima": 7,
   "max_analises_por_rodada": 6,
   "avisar_sem_ia": true
