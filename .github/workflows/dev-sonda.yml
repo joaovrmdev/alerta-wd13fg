@@ -16,4 +16,4 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python sonda_post.py
+      - run: python sonda_consist.py
