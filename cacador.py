@@ -548,6 +548,14 @@ def gemini(o: Oferta, estado: dict, agora: datetime, extra: str = "") -> dict:
     raise SemIA(ultimo)
 
 
+def nota_de_aviso(veredito: str) -> int:
+    """Bug tem régua própria: a IA dá nota menor a bug absurdo porque a loja tende a cancelar, mas pedir não custa
+    nada e é justamente o que o grupo quer ver. Promoção segue a nota mínima normal."""
+    if veredito == "bug_provavel":
+        return CFG.get("nota_minima_bug", CFG.get("nota_minima", 7))
+    return CFG.get("nota_minima", 7)
+
+
 def analisa(o: Oferta, estado: dict, agora: datetime, teste: bool = False) -> dict:
     """Uma análise; se ela disser "bug provável" com nota para aviso, pede uma segunda opinião.
 
@@ -563,7 +571,7 @@ def analisa(o: Oferta, estado: dict, agora: datetime, teste: bool = False) -> di
               f"raciocínio {u.get('pensamento')} [{u.get('raciocinio')}], buscas {u.get('buscas')}")
         return r
 
-    minima = CFG.get("nota_minima", 7)
+    minima = CFG.get("nota_minima_bug", CFG.get("nota_minima", 7))
     a = uma()
     if (a["veredito"] == "bug_provavel" and a["nota"] >= minima and not teste
             and CFG["gemini"].get("segunda_opiniao_bug", True)):
@@ -800,7 +808,7 @@ def main() -> int:
                 sem_ia = str(e)
                 print(f"  [sem IA] {sem_ia}")
         analisados[chave_titulo(o)] = agora.isoformat()
-        bom = a is not None and a["veredito"] in VEREDITOS_BONS and a["nota"] >= CFG.get("nota_minima", 7)
+        bom = a is not None and a["nota"] >= nota_de_aviso(a["veredito"]) and a["veredito"] in VEREDITOS_BONS
         if teste or bom or (a is None and CFG.get("avisar_sem_ia", True) and forte(o)):
             avisos += envia(mensagem(o, a, teste=teste))
 
