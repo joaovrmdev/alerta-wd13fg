@@ -128,6 +128,21 @@ O que mais pesa na conta do Gemini é o "raciocínio" (tokens que o modelo gera 
 
 O log de cada rodada mostra os tokens de cada análise e o total do dia ("IA hoje: ...").
 
+### Consistência das notas
+
+O modelo pode julgar a mesma oferta de jeitos diferentes conforme o que a pesquisa encontra (ex.: uma cama box
+"70% off" no Mercado Livre levou de 2 a 7 na mesma tarde, porque às vezes a pesquisa achava o frete de R$ 1.000).
+Para isso não chegar ao grupo:
+
+- `ler_comentarios`: lê a página do post no Promobit e manda para a IA quem vende e os comentários dos usuários
+  ("frete mais caro que a cama"). É grátis.
+- Critérios fixos no prompt: custo total (frete, cupom, variação) e evidência concreta para chamar de bug.
+- `gemini.segunda_opiniao_bug`: todo "bug provável" com nota de aviso passa por uma contraprova, uma segunda
+  análise que procura explicações que não sejam erro. Só vai como bug se as duas concordarem. Bug é raro, então
+  o custo extra é pequeno.
+- `nota_minima_bug`: régua própria para bug (4). A IA dá nota baixa a bug absurdo porque a loja tende a
+  cancelar, mas pedir não custa nada; a mensagem mostra a chance de a loja honrar. Promoção segue `nota_minima`.
+
 ### Mandar as ofertas para um grupo do Telegram
 
 As ofertas do caçador podem ir para um grupo; os avisos técnicos (IA fora do ar, fontes falhando) continuam
