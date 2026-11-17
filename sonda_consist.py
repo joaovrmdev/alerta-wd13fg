@@ -1,26 +1,22 @@
-"""Sonda temporária: a cama box com a versão nova (com e sem comentários), 3x cada."""
-import json, re
-from datetime import datetime
+"""Sonda temporária: contraprova na cama box (sem comentários) e num bug de verdade inventado."""
+from datetime import datetime, timedelta
 import cacador as c
 agora = datetime.now(c.BRT)
 ofertas = c.promobit(c.CFG["fontes"]["promobit"])
-for termo, rodadas in (("Cama Box", 3), ("NBA", 1)):
-    o = next((x for x in ofertas if termo.lower() in x.titulo.lower()), None)
-    if not o:
-        print("não achei", termo); continue
-    o.motivos = c.motivos(o) or ["teste"]
-    texto = c.baixa(o.url)
-    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', texto, re.S)
-    so = (json.loads(m.group(1))["props"]["pageProps"].get("serverOffer") or {}) if m else {}
-    print(f"\n##### {o.titulo} | chaves serverOffer: {sorted(so.keys())[:60]}")
-    c.contexto_promobit(o)
-    print("vendido por:", o.vendido_por, "| comentários:", o.comentarios)
-    cmts = list(o.comentarios)
-    for cenario, lista in (("COM comentários", cmts), ("SEM comentários (como no minuto em que o post sai)", [])):
-        if termo == "NBA" and not lista:
-            continue
-        print(f"\n--- {cenario}")
-        for i in range(rodadas):
-            o.comentarios = list(lista)
-            a = c.analisa(o, {}, agora)
-            print(f"  => #{i+1}: {a['veredito']} {a['nota']}/10 normal={c.brl(a.get('preco_normal'))} | {str(a.get('resumo'))[:150]}")
+o = next((x for x in ofertas if "cama box" in x.titulo.lower()), None)
+o.motivos = c.motivos(o) or ["70% de desconto"]
+o.vendido_por = "Mercado Livre"
+print("\n--- Cama box, SEM comentários: só a contraprova, 3x")
+for i in range(3):
+    a = c.gemini(o, {}, agora, c.SEGUNDA_CHECAGEM)
+    print(f"  => #{i+1}: {a['veredito']} {a['nota']}/10 | {str(a.get('resumo'))[:170]}")
+
+bug = c.Oferta("Promobit", "999", "[BUG] Apple iPhone 16 128GB Preto", "https://www.promobit.com.br/oferta/x-999/",
+               499.0, 5999.0, 92, "Amazon", publicado=agora - timedelta(minutes=8),
+               texto="Corre que bugou! iPhone 16 128GB por R$ 499 vendido e entregue pela Amazon.")
+bug.motivos = ["palavra de bug", "92% de desconto"]
+bug.vendido_por = "Amazon"
+print("\n--- Bug de verdade (simulado): análise completa com contraprova, 2x")
+for i in range(2):
+    a = c.analisa(bug, {}, agora)
+    print(f"  => #{i+1}: {a['veredito']} {a['nota']}/10 honrar={a.get('chance_honrar')} | {str(a.get('resumo'))[:170]}")

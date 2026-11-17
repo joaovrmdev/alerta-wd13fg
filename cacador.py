@@ -489,14 +489,20 @@ def conta_uso(estado: dict, agora: datetime, uso: dict | None) -> dict:
     return dia
 
 
-def gemini(o: Oferta, estado: dict, agora: datetime) -> dict:
+SEGUNDA_CHECAGEM = """Segunda checagem: outra análise achou que isto parece erro de preço. Antes de concordar, procure \
+ativamente explicações que NÃO sejam erro: frete alto (comum em móveis e itens grandes vendidos em marketplace), \
+preço só para uma variação ou tamanho, cupom restrito, produto diferente do título, kit ou peça avulsa, ou campanha \
+divulgada pela loja. Só mantenha "bug_provavel" com nota 7 ou mais se nenhuma dessas explicações se sustentar."""
+
+
+def gemini(o: Oferta, estado: dict, agora: datetime, extra: str = "") -> dict:
     chave = os.getenv("GEMINI_API_KEY")
     if not chave:
         raise SemIA("a chave do Gemini (GEMINI_API_KEY) ainda não foi cadastrada")
     modelos = list(dict.fromkeys(([estado["modelo_gemini"]] if estado.get("modelo_gemini") else [])
                                  + CFG["gemini"]["modelos"]))
     base = {"systemInstruction": {"parts": [{"text": INSTRUCOES}]},
-            "contents": [{"role": "user", "parts": [{"text": descreve(o, agora)}]}]}
+            "contents": [{"role": "user", "parts": [{"text": descreve(o, agora) + (f"\n\n{extra}" if extra else "")}]}]}
     # raciocínio é o que mais pesa na conta: "low" no dia a dia; candidatos com cara de bug usam o padrão do
     # modelo (pensa mais e pesquisa no Google), porque são raros e são os que mais importam
     nivel = CFG["gemini"].get("raciocinio_bug" if "palavra de bug" in o.motivos else "raciocinio")
@@ -548,8 +554,8 @@ def analisa(o: Oferta, estado: dict, agora: datetime, teste: bool = False) -> di
     O modelo varia de uma chamada para outra (depende do que a pesquisa encontra). Como bug é o aviso mais
     sério e é raro, ele só vai como bug se as duas análises concordarem; senão fica a mais conservadora.
     """
-    def uma() -> dict:
-        r = gemini(o, estado, agora)
+    def uma(extra: str = "") -> dict:
+        r = gemini(o, estado, agora, extra)
         u = r.get("_uso") or {}
         conta_uso(estado, agora, u)
         print(f"  [IA {r.get('_modelo')}] {r['veredito']} {r['nota']}/10 | {r.get('resumo', '')[:120]}")
@@ -561,7 +567,7 @@ def analisa(o: Oferta, estado: dict, agora: datetime, teste: bool = False) -> di
     a = uma()
     if (a["veredito"] == "bug_provavel" and a["nota"] >= minima and not teste
             and CFG["gemini"].get("segunda_opiniao_bug", True)):
-        b = uma()
+        b = uma(SEGUNDA_CHECAGEM)  # contraprova: a mesma pergunta repetida tende a repetir a resposta
         if b["veredito"] == "bug_provavel" and b["nota"] >= minima:
             a["nota"] = min(a["nota"], b["nota"])
             print(f"  [2ª opinião] confirmou o bug (nota final {a['nota']})")
