@@ -22,6 +22,7 @@
   },
   "ler_comentarios": true,
   "nota_minima": 7,
+  "nota_minima_bug": 4,
   "max_analises_por_rodada": 6,
   "avisar_sem_ia": true
 }
