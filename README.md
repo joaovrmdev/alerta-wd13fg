@@ -35,8 +35,7 @@ Telegram com os preços atuais e quais lojas ele conseguiu ler.
 
 | Campo | O que faz |
 |---|---|
-| `preco_alvo` | avisa quando o custo da compra ficar igual ou abaixo disso (PIX, à vista ou parcelado em valor de hoje, o que sair melhor) |
-| `rendimento_mensal_pct` | quanto o seu dinheiro rende por mês, já sem IR (0,85 ≈ CDB 100% do CDI em nov/2026). Serve para comparar parcelar com pagar à vista; `null` ignora o parcelado |
+| `preco_alvo` | avisa quando o menor valor para levar o produto (PIX, à vista ou total parcelado) ficar igual ou abaixo disso |
 | `cores_aceitas` | só considera anúncios que citam uma dessas cores (inox/black); `[]` aceita todas |
 | `voltagem` | `"220V"` ignora anúncios que dizem só 127V/110V (e vice-versa); `null` aceita tudo |
 | `avisar_queda_percentual` | avisa quedas bruscas mesmo acima do alvo; `null` desliga |
@@ -53,10 +52,8 @@ O alerta lê, quando a loja informa, o preço no PIX e o melhor parcelamento:
 - **Amazon**: o preço principal costuma ser o do PIX ("10% off à vista no Pix") e o parcelamento vem logo abaixo.
 - **Buscapé e Zoom**: o preço à vista e o parcelamento da oferta.
 
-As parcelas são trazidas a valor de hoje com `rendimento_mensal_pct` (o dinheiro fica rendendo até cada
-vencimento). Se parcelar sair mais barato que pagar à vista, a mensagem marca "✅ parcelar sai melhor" e é esse
-valor que conta para o preço-alvo. Exemplo: 18x de R$ 286,49 sem juros valem ~R$ 4.763 hoje, menos que
-R$ 4.899 no PIX.
+O preço-alvo vale para o menor desses valores: o PIX/à vista ou o total parcelado (quando, raramente, o
+parcelado sai mais barato, a mensagem marca "✅ parcelado sai mais barato").
 
 ## Outros produtos
 

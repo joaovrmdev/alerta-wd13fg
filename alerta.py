@@ -92,23 +92,15 @@ class Oferta:
         return round(self.parcelas * self.parcela, 2) if self.parcelas and self.parcela else None
 
     @property
-    def hoje_parcelado(self) -> float | None:
-        """Quanto as parcelas valem hoje, deixando o dinheiro rendendo até cada vencimento."""
-        taxa = CFG.get("rendimento_mensal_pct")
-        if not (taxa and self.parcelas and self.parcela and self.parcelas >= 2):
-            return None
-        i = taxa / 100
-        return round(self.parcela * (1 - (1 + i) ** -self.parcelas) / i, 2)
-
-    @property
-    def parcelar_compensa(self) -> bool:
-        hoje = self.hoje_parcelado
-        return hoje is not None and hoje < self.preco - 0.5
+    def parcelado_menor(self) -> bool:
+        """Raro, mas acontece: o total parcelado sair abaixo do preço à vista/PIX."""
+        total = self.total_parcelado
+        return bool(self.parcelas and self.parcelas >= 2 and total and total < self.preco - 0.5)
 
     @property
     def custo(self) -> float:
-        """O que a compra custa de verdade: o menor entre pagar agora e parcelar (em valor de hoje)."""
-        return self.hoje_parcelado if self.parcelar_compensa else self.preco  # type: ignore[return-value]
+        """O menor valor para levar o produto: PIX/à vista ou o total parcelado."""
+        return self.total_parcelado if self.parcelado_menor else self.preco  # type: ignore[return-value]
 
 
 # ----------------------------------------------------------------- texto e preço
@@ -633,10 +625,6 @@ def monta_mensagem(cabecalho: str, ofertas: list[Oferta], notas: list[str], cana
         linhas.append(f"  {texto(o.titulo, canal)}")
     if not ofertas:
         linhas.append(texto("Nenhum preço encontrado nesta rodada.", canal))
-    if any(o.hoje_parcelado for o in ofertas[:5]):
-        taxa = f"{CFG['rendimento_mensal_pct']:.2f}".replace(".", ",")
-        notas = notas + [f"\"Hoje\" = quanto as parcelas valem agora, com o dinheiro rendendo {taxa}% ao mês "
-                         "até cada vencimento."]
     if notas:
         linhas.append("")
         linhas += [texto(n, canal) for n in notas]
@@ -645,10 +633,8 @@ def monta_mensagem(cabecalho: str, ofertas: list[Oferta], notas: list[str], cana
 
 def linha_parcelado(o: Oferta) -> str:
     partes = f"ou {o.parcelas}x de {brl(o.parcela)}{' sem juros' if o.sem_juros else ''} = {brl(o.total_parcelado)}"
-    if o.hoje_parcelado:
-        partes += f" (≈ {brl(o.hoje_parcelado)} hoje)"
-        if o.parcelar_compensa:
-            partes += " ✅ parcelar sai melhor"
+    if o.parcelado_menor:
+        partes += " ✅ parcelado sai mais barato"
     return partes
 
 
@@ -728,7 +714,7 @@ def decide(estado: dict, melhor: Oferta | None, agora: datetime) -> tuple[str | 
     alvo = CFG.get("preco_alvo")
     queda = CFG.get("avisar_queda_percentual")
     if alvo and custo <= alvo:
-        jeito = " parcelando" if melhor.parcelar_compensa else ""
+        jeito = " parcelado" if melhor.parcelado_menor else (f" {melhor.forma}" if melhor.forma else "")
         motivo = f"🔥 {CFG['produto']} chegou no seu preço-alvo{jeito} ({brl(alvo)})!"
     elif queda and mediana and not melhor.estimado and custo <= mediana * (1 - queda / 100):
         pct = (1 - custo / mediana) * 100
@@ -795,7 +781,7 @@ def main() -> int:
     melhor = ofertas[0] if ofertas else None
     motivo, notas = decide(estado, melhor, agora)
     if melhor:
-        jeito = f" (parcelado, em valor de hoje; à vista {brl(melhor.preco)})" if melhor.parcelar_compensa else \
+        jeito = f" (parcelado; à vista {brl(melhor.preco)})" if melhor.parcelado_menor else \
             (f" {melhor.forma}" if melhor.forma else "")
         print(f"\nMelhor preço: {brl(melhor.custo)}{jeito} em {melhor.loja}")
     else:
