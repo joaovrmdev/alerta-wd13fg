@@ -4,7 +4,6 @@
   "exigir_tambem": ["com tampo"],
   "cores_aceitas": ["branco"],
   "preco_alvo": 600,
-  "rendimento_mensal_pct": 0.85,
   "voltagem": null,
   "avisar_queda_percentual": 7,
   "repetir_alerta_horas": 24,

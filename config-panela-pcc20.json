@@ -3,7 +3,6 @@
   "palavras_chave": ["PCC20"],
   "cores_aceitas": [],
   "preco_alvo": 399,
-  "rendimento_mensal_pct": 0.85,
   "voltagem": "127V",
   "avisar_queda_percentual": 7,
   "repetir_alerta_horas": 24,
