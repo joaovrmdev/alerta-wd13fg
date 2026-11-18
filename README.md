@@ -112,6 +112,34 @@ se a IA está funcionando. Para testar na hora: **Actions → Caçador de preço
 
 O caçador tem o próprio workflow (`cacador.yml`) e roda a cada 10 minutos, 24 horas por dia.
 
+### Custo da IA
+
+O que mais pesa na conta do Gemini é o "raciocínio" (tokens que o modelo gera pensando antes de responder).
+
+- `gemini.raciocinio`: nível de raciocínio no dia a dia. `null` usa o padrão do modelo (melhor análise);
+  `"low"` sai uns 70% mais barato, com o mesmo veredito nos testes, mas o "preço normal" fica menos preciso.
+- `gemini.raciocinio_bug`: o mesmo, só para candidatos com palavra de bug ("bug", "erro de preço"...).
+- `gemini.max_analises_por_dia`: teto diário (60 ≈ R$ 2,40 por dia no padrão). Passou dele, o que não tem
+  palavra de bug fica de fora (nada chega ao grupo sem análise) e você recebe um aviso no privado. Candidatos
+  com palavra de bug sempre são analisados.
+
+O log de cada rodada mostra os tokens de cada análise e o total do dia ("IA hoje: ...").
+
+### Consistência das notas
+
+O modelo pode julgar a mesma oferta de jeitos diferentes conforme o que a pesquisa encontra (ex.: uma cama box
+"70% off" no Mercado Livre levou de 2 a 7 na mesma tarde, porque às vezes a pesquisa achava o frete de R$ 1.000).
+Para isso não chegar ao grupo:
+
+- `ler_comentarios`: lê a página do post no Promobit e manda para a IA quem vende e os comentários dos usuários
+  ("frete mais caro que a cama"). É grátis.
+- Critérios fixos no prompt: custo total (frete, cupom, variação) e evidência concreta para chamar de bug.
+- `gemini.segunda_opiniao_bug`: todo "bug provável" com nota de aviso passa por uma contraprova, uma segunda
+  análise que procura explicações que não sejam erro. Só vai como bug se as duas concordarem. Bug é raro, então
+  o custo extra é pequeno.
+- `nota_minima_bug`: régua própria para bug (4). A IA dá nota baixa a bug absurdo porque a loja tende a
+  cancelar, mas pedir não custa nada; a mensagem mostra a chance de a loja honrar. Promoção segue `nota_minima`.
+
 ### Mandar as ofertas para um grupo do Telegram
 
 As ofertas do caçador podem ir para um grupo; os avisos técnicos (IA fora do ar, fontes falhando) continuam
