@@ -57,7 +57,7 @@ parcelado sai mais barato, a mensagem marca "✅ parcelado sai mais barato").
 
 ## Outros produtos
 
-O mesmo robô também acompanha (todos em 127V):
+O mesmo robô também acompanha (os eletrodomésticos são 127V):
 
 | Arquivo | Produto | Alvo | Resumo diário |
 |---|---|---|---|
@@ -65,6 +65,7 @@ O mesmo robô também acompanha (todos em 127V):
 | `config-multiprocessador.json` | multiprocessador Mondial Turbo Chef 9 em 1 (MPN-01-BF) | R$ 250 | não |
 | `config-panela-pe38.json` | panela de pressão elétrica Mondial Master Cooker 5L (PE-38) | R$ 299 | não |
 | `config-panela-pcc20.json` | panela de pressão elétrica Electrolux 6L (PCC20) | R$ 399 | não |
+| `config-azzaro-wanted.json` | perfume Azzaro Wanted EDT 100 ml | mínima histórica | não |
 
 Cada produto tem o seu arquivo e o seu próprio histórico em `estado/`. O workflow roda `config.json` e todos
 os `config-*.json`, então para acompanhar mais um produto basta copiar um desses arquivos e ajustar. Na
@@ -77,6 +78,12 @@ Campos extras que um produto pode usar:
 |---|---|
 | `exigir_tambem` | termos que também precisam estar no nome (ex.: `"com tampo"`, para ignorar a versão sem tampo) |
 | `desconto_pix` (em uma fonte) | desconto fixo no PIX que a loja não mostra nos dados (ex.: `12` na Madesa) |
+| `alvo_minima_historica` | avisa quando o menor preço bater a mínima histórica do produto (vem de uma fonte `promobit_produto`) |
+| `"tipo": "promobit_produto"` (em uma fonte) | página do produto no Promobit: traz o menor e o maior preço já postados e usa o post mais recente como preço atual se tiver até `max_horas` (padrão 24) |
+
+Nas lojas VTEX (Samsung, Fast Shop, Época, drogarias), cada tamanho/voltagem (SKU) vira uma oferta separada, com
+o nome do SKU no título, para o filtro não misturar 50 ml com 100 ml ou 127V com 220V. O Mercado Livre pede
+login para robôs; as ofertas de lá chegam pelos posts do Promobit.
 
 ## Caçador de preço bugado (`cacador.py`)
 
