@@ -683,7 +683,14 @@ def mensagem(o: Oferta, a: dict | None, teste: bool = False) -> str:
             linhas.append(f"⚠️ {esc(a['riscos'])}")
     else:
         linhas.append(esc(f"Motivo: {', '.join(o.motivos)}"))
-    linhas += ["", f'<a href="{html.escape(o.url)}">Abrir no {esc(o.fonte)}</a>']
+    if o.fonte == "Radar":  # achado lendo o site da loja direto (radar.py), antes de virar post
+        if a:
+            linhas.append(esc(f"📡 Radar: {'; '.join(o.motivos)}"))
+        if o.vendido_por:
+            linhas.append(esc(f"Vendido por {o.vendido_por} (marketplace)"))
+        linhas += ["", f'<a href="{html.escape(o.url)}">Abrir na loja</a>']
+    else:
+        linhas += ["", f'<a href="{html.escape(o.url)}">Abrir no {esc(o.fonte)}</a>']
     return "\n".join(linhas)
 
 

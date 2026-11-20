@@ -1,0 +1,24 @@
+{
+  "intervalo_minutos": 30,
+  "paginas_por_categoria": 50,
+  "lojas": [
+    {"id": "epoca", "nome": "Época Cosméticos", "host": "www.epocacosmeticos.com.br", "categorias": ["/1000001/"], "grupo": "epoca", "ativa": true},
+    {"id": "dsp", "nome": "Drogaria São Paulo", "host": "www.drogariasaopaulo.com.br", "categorias": ["/1245/"], "grupo": "dpsp", "ativa": true},
+    {"id": "pacheco", "nome": "Drogarias Pacheco", "host": "www.drogariaspacheco.com.br", "categorias": ["/1245/"], "grupo": "dpsp", "ativa": true},
+    {"id": "extrafarma", "nome": "Extrafarma", "host": "www.extrafarma.com.br", "categorias": ["/300/879/"], "grupo": "paguemenos", "ativa": true},
+    {"id": "paguemenos", "nome": "Pague Menos", "host": "www.paguemenos.com.br", "categorias": ["/300/879/"], "grupo": "paguemenos", "ativa": true}
+  ],
+
+  "preco_minimo": 60,
+  "dias_historico": 30,
+  "dias_referencia": 14,
+
+  "queda_minima_pct": 40,
+  "abaixo_outras_lojas_pct": 40,
+  "desconto_declarado_pct": 80,
+  "preco_de_minimo": 150,
+
+  "max_analises_por_rodada": 2,
+  "max_analises_por_dia": 10,
+  "nao_repetir_dias": 3
+}
