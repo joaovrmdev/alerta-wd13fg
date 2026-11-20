@@ -355,8 +355,30 @@ def pagamento_do_texto(o: Oferta, t: str, perto: int | None = None) -> Oferta:
     return o
 
 
+def varre_skus(obj: dict, fonte: dict, saida: list[Oferta]) -> bool:
+    """Produto VTEX (Samsung, Fast Shop, drogarias...): cada SKU (50/100 ml, 127/220 V) vira uma oferta própria,
+    com o nome do SKU no título, para o filtro de tamanho/voltagem valer e não misturar preços."""
+    itens = obj.get("items")
+    base = nome_de(obj)
+    if not (base and isinstance(itens, list) and itens and all(isinstance(i, dict) and "sellers" in i for i in itens)):
+        return False
+    for it in itens:
+        completo = str(it.get("nameComplete") or "").strip()
+        titulo = completo if normaliza(base)[:20] in normaliza(completo) else f"{base} {it.get('name') or ''}".strip()
+        titulo = " ".join(html.unescape(titulo).split())
+        if not (bate_modelo(titulo) and cor_ok(titulo)) or excluido(titulo):
+            continue
+        precos = precos_de(it)
+        if precos:
+            saida.append(aplica_condicoes(Oferta(titulo[:120], min(precos), fonte["nome"],
+                                                 url_de(obj, fonte["url"]), fonte["nome"]), it))
+    return True
+
+
 def varre(obj, fonte: dict, saida: list[Oferta], prof: int = 0) -> None:
     if prof > 80:
+        return
+    if isinstance(obj, dict) and varre_skus(obj, fonte, saida):
         return
     if isinstance(obj, dict):
         titulo = nome_de(obj)
@@ -541,8 +563,45 @@ def amazon_busca(texto: str, fonte: dict) -> list[Oferta]:
     return ofertas
 
 
+REFERENCIA: dict = {}  # mínima/máxima histórica (Promobit), preenchida pela fonte "promobit_produto"
+
+
+def promobit_produto(texto: str, fonte: dict, url_final: str) -> list[Oferta]:
+    """Página do produto no Promobit (ex.: /oferta/perfume-azzaro-wanted-edt-masculino-100ml/).
+
+    Traz o histórico de preço dos posts (menor e maior preço já postados) e o post mais recente. O post só conta
+    como preço atual se for recente (`max_horas`), porque oferta de dias atrás quase sempre já acabou.
+    """
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', texto, re.S)
+    if not m:
+        raise RuntimeError("página do Promobit sem dados (layout mudou?)")
+    oferta = ((json.loads(m.group(1)).get("props") or {}).get("pageProps") or {}).get("serverOffer") or {}
+    ref = oferta.get("referencePrices") or {}
+    if para_numero(ref.get("minPrice")):
+        REFERENCIA.update(minima=para_numero(ref["minPrice"]), maxima=para_numero(ref.get("maxPrice")),
+                          fonte="Promobit")
+    titulo = " ".join(str(oferta.get("offerTitle") or "").split())
+    preco = no_intervalo(oferta.get("offerPrice"))
+    publicado = oferta.get("offerPublished")
+    try:
+        idade = datetime.now(BRT) - datetime.fromisoformat(re.sub(r"([+-]\d{2})(\d{2})$", r"\1:\2", publicado))
+    except (TypeError, ValueError):
+        idade = None
+    recente = idade is not None and idade <= timedelta(hours=fonte.get("max_horas", 24))
+    if DEPURAR:
+        print(f"          [diag] Promobit: mínima {REFERENCIA.get('minima')} / máxima {REFERENCIA.get('maxima')} | "
+              f"último post {preco} há {idade} | {titulo[:70]}")
+    if not (titulo and preco and recente and bate_modelo(titulo) and cor_ok(titulo)) or excluido(titulo):
+        return []
+    loja = oferta.get("storeName") or oferta.get("storeDomain") or "Promobit"
+    horas = int(idade.total_seconds() // 3600)
+    return [Oferta(f"{titulo[:100]} (post no Promobit há {horas}h)", preco, str(loja), url_final, fonte["nome"])]
+
+
 def consulta_fonte(fonte: dict) -> list[Oferta]:
     texto, url_final = baixa(fonte["url"])
+    if fonte.get("tipo") == "promobit_produto":
+        return promobit_produto(texto, fonte, url_final)
     ofertas: list[Oferta] = []
     if "amazon.com" in url_final:
         ofertas = amazon_busca(texto, fonte) if "s-search-result" in texto else amazon(texto, fonte, url_final)
@@ -692,6 +751,13 @@ def salva_estado(estado: dict) -> None:
     ARQ_ESTADO.write_text(json.dumps(estado, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+def linha_referencia() -> list[str]:
+    if not REFERENCIA.get("minima"):
+        return []
+    maxima = f", máxima {brl(REFERENCIA['maxima'])}" if REFERENCIA.get("maxima") else ""
+    return [f"Histórico ({REFERENCIA.get('fonte')}): mínima {brl(REFERENCIA['minima'])}{maxima}"]
+
+
 def decide(estado: dict, melhor: Oferta | None, agora: datetime) -> tuple[str | None, list[str]]:
     """Devolve (motivo do alerta ou None, notas) e atualiza o estado."""
     notas: list[str] = []
@@ -713,7 +779,12 @@ def decide(estado: dict, melhor: Oferta | None, agora: datetime) -> tuple[str | 
     motivo = None
     alvo = CFG.get("preco_alvo")
     queda = CFG.get("avisar_queda_percentual")
-    if alvo and custo <= alvo:
+    minima = REFERENCIA.get("minima") if CFG.get("alvo_minima_historica") else None
+    if minima and custo <= minima:
+        jeito = f" {melhor.forma}" if melhor.forma else ""
+        motivo = (f"🏆 {CFG['produto']} bateu a mínima histórica{jeito}: {brl(custo)} "
+                  f"(a menor do {REFERENCIA.get('fonte')} era {brl(minima)})!")
+    elif alvo and custo <= alvo:
         jeito = " parcelado" if melhor.parcelado_menor else (f" {melhor.forma}" if melhor.forma else "")
         motivo = f"🔥 {CFG['produto']} chegou no seu preço-alvo{jeito} ({brl(alvo)})!"
     elif queda and mediana and not melhor.estimado and custo <= mediana * (1 - queda / 100):
@@ -796,18 +867,20 @@ def main() -> int:
     hoje = agora.date().isoformat()
 
     if modo == "teste":
-        envia(f"🧪 Teste do alerta — {CFG['produto']}", ofertas, notas + rodape + falhas)
+        envia(f"🧪 Teste do alerta — {CFG['produto']}", ofertas, notas + linha_referencia() + rodape + falhas)
     elif motivo:
         envia(motivo, ofertas, notas + rodape)
     elif comecando:
         alvo = [f"Alvo: {brl(CFG['preco_alvo'])}"] if CFG.get("preco_alvo") else []
+        alvo += linha_referencia()
         envia(f"✅ Comecei a acompanhar — {CFG['produto']}", ofertas, alvo + rodape + falhas)
     elif (CFG.get("resumo_diario_hora") is not None and agora.hour >= CFG["resumo_diario_hora"]
           and estado.get("ultimo_resumo") != hoje):
         recorde = estado.get("menor_ja_visto")
         extra = [f"Menor já visto: {brl(recorde['preco'])} ({recorde['loja']})"] if recorde else []
         envia(f"📊 Resumo diário — {CFG['produto']}", ofertas,
-              extra + [f"Alvo: {brl(CFG['preco_alvo'])}"] + rodape + falhas)
+              extra + ([f"Alvo: {brl(CFG['preco_alvo'])}"] if CFG.get("preco_alvo") else [])
+              + linha_referencia() + rodape + falhas)
         estado["ultimo_resumo"] = hoje
     elif estado["falhas_seguidas"] == 3:
         envia("⚠️ O alerta não conseguiu ler nenhuma loja nas últimas 3 verificações",

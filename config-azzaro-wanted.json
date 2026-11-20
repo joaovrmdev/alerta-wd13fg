@@ -1,0 +1,32 @@
+{
+  "produto": "Perfume Azzaro Wanted EDT 100ml",
+  "palavras_chave": ["Wanted"],
+  "exigir_tambem": ["azzaro", "100m"],
+  "cores_aceitas": [],
+  "preco_alvo": null,
+  "alvo_minima_historica": true,
+  "voltagem": null,
+  "avisar_queda_percentual": 10,
+  "repetir_alerta_horas": 24,
+  "resumo_diario_hora": null,
+  "faixa_de_preco_valida": [150, 1500],
+  "excluir_se_tiver": ["night", "girl", "most", "parfum", "edp", "intense", "elixir", "tonic", "forever",
+                       "kit", "coffret", "estojo", "50ml", "50 ml", "150ml", "150 ml", "200ml", "decant",
+                       "amostra", "miniatura", "refil", "desodorante", "body", "locao", "hair", "contratipo",
+                       "inspirado", "similar", "tester", "usado", "seminov"],
+  "fontes": [
+    {
+      "nome": "Promobit (histórico e último post)",
+      "tipo": "promobit_produto",
+      "url": "https://www.promobit.com.br/oferta/perfume-azzaro-wanted-edt-masculino-100ml/",
+      "max_horas": 24
+    },
+    {"nome": "Época Cosméticos", "url": "https://www.epocacosmeticos.com.br/api/catalog_system/pub/products/search?ft=azzaro%20wanted"},
+    {"nome": "Drogaria São Paulo", "url": "https://www.drogariasaopaulo.com.br/api/catalog_system/pub/products/search?ft=azzaro%20wanted"},
+    {"nome": "Drogarias Pacheco", "url": "https://www.drogariaspacheco.com.br/api/catalog_system/pub/products/search?ft=azzaro%20wanted"},
+    {"nome": "Extrafarma", "url": "https://www.extrafarma.com.br/api/catalog_system/pub/products/search?ft=azzaro%20wanted"},
+    {"nome": "Buscapé (busca)", "url": "https://www.buscape.com.br/busca/azzaro%20wanted%20eau%20de%20toilette%20100ml"},
+    {"nome": "Zoom (busca)", "url": "https://www.zoom.com.br/busca/azzaro%20wanted%20eau%20de%20toilette%20100ml"},
+    {"nome": "Mercado Livre", "url": "https://lista.mercadolivre.com.br/azzaro-wanted-edt-100ml", "ativa": false}
+  ]
+}
