@@ -308,13 +308,13 @@ def condicoes(obj, prof: int = 0) -> list[dict]:
                         "sem_juros": True if melhor else None, "total": melhor[2] if melhor else None})
     elif base and isinstance(inst, dict):  # Buscapé / Zoom
         n, valor = _num(inst, "amount_months", "months", "count", "quantity"), _num(inst, "price", "value")
+        total = _num(inst, "total_value", "total")
         if n and n >= 2 and valor and valor >= min(base) * 0.9:  # algumas lojas mandam o total no lugar da parcela
-            valor = round(valor / n, 2)
+            valor, total = round(valor / n, 2), valor
         if n and n >= 2 and valor:
             juros = inst.get("interest", inst.get("interestRate"))
             achadas.append({"base": min(base), "pix": None, "parcelas": int(n), "parcela": valor,
-                            "sem_juros": (juros == 0) if juros is not None else None,
-                            "total": _num(inst, "total_value", "total")})
+                            "sem_juros": (juros == 0) if juros is not None else None, "total": total})
     for v in obj.values():
         if isinstance(v, (dict, list)) and not (isinstance(v, dict) and ignorar_filho(v)):
             achadas += condicoes(v, prof + 1)
@@ -777,7 +777,8 @@ def cupons_da_loja(slug: str, dias: int = 45) -> list[dict]:
         if prof > 12:
             return
         if isinstance(x, dict):
-            if x.get("couponId") and x.get("couponStatusName", "APPROVED") == "APPROVED":
+            if (x.get("couponId") and x.get("couponStatusName", "APPROVED") == "APPROVED"
+                    and x.get("storeSlug", slug) == slug):  # a página também lista cupons de outras lojas
                 achados.append(x)
             for v in x.values():
                 anda(v, prof + 1)

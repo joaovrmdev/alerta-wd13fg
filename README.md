@@ -79,6 +79,8 @@ Campos extras que um produto pode usar:
 | `exigir_tambem` | termos que também precisam estar no nome (ex.: `"com tampo"`, para ignorar a versão sem tampo) |
 | `desconto_pix` (em uma fonte) | desconto fixo no PIX que a loja não mostra nos dados (ex.: `12` na Madesa) |
 | `alvo_minima_historica` | avisa quando o menor preço bater a mínima histórica do produto (vem de uma fonte `promobit_produto`) |
+| `mostrar_cupons` | nas mensagens, lista os cupons ativos (Promobit) da loja da melhor oferta e estima o preço com o cupom quando ele parece valer para o site todo; sempre "confira no carrinho" |
+| `cupons_promobit` (em uma fonte) | página de cupons da loja no Promobit, quando o nome não for reconhecido (ex.: `"epoca-cosmeticos"`) |
 | `"tipo": "promobit_produto"` (em uma fonte) | página do produto no Promobit: traz o menor e o maior preço já postados e usa o post mais recente como preço atual se tiver até `max_horas` (padrão 24) |
 
 Nas lojas VTEX (Samsung, Fast Shop, Época, drogarias), cada tamanho/voltagem (SKU) vira uma oferta separada, com
