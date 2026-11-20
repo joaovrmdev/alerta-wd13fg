@@ -16,4 +16,9 @@ jobs:
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python sonda_sites.py
+      - run: |
+          for cfg in config-azzaro-wanted.json config.json; do
+            echo "::group::$cfg"
+            CONFIG="$cfg" python alerta.py simulacao || echo "FALHOU $cfg"
+            echo "::endgroup::"
+          done
