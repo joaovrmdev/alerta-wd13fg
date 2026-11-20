@@ -1,46 +1,32 @@
-"""Sonda temporária: tamanho da categoria de perfumes, EAN e ListPrice."""
-import time
+"""Sonda temporária: roda o radar de verdade (simulação) e mede o ruído das réguas sem histórico."""
+import sys, time
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import quote
-import cacador as c
+import radar as r
 
-LOJAS = {"Época": ("www.epocacosmeticos.com.br", "/1000001/"), "Drogaria SP": ("www.drogariasaopaulo.com.br", "/1245/"),
-         "Pacheco": ("www.drogariaspacheco.com.br", "/1245/"), "Extrafarma": ("www.extrafarma.com.br", "/300/879/"),
-         "Pague Menos": ("www.paguemenos.com.br", "/300/879/")}
-
-def total(host, cat):
-    r = c.navegador.get(f"https://{host}/api/catalog_system/pub/products/search?fq=C:{quote(cat)}&_from=0&_to=0",
-                        timeout=30, **c.IMITAR)
-    return r.headers.get("resources"), r.status_code
-
-def le_tudo(nome, host, cat, n):
-    t0 = time.time(); skus = eans = lp = disp = 0; paginas = 0; erros = 0
-    for ini in range(0, min(n, 2500), 50):
-        url = f"https://{host}/api/catalog_system/pub/products/search?fq=C:{quote(cat)}&_from={ini}&_to={ini + 49}&O=OrderByNameASC"
-        try:
-            lista = c.baixa(url, json_=True)
-        except Exception as e:
-            erros += 1; print(nome, "erro", ini, e); continue
-        paginas += 1
-        for p in lista:
-            for it in p.get("items", []):
-                skus += 1
-                eans += bool(it.get("ean"))
-                of = ((it.get("sellers") or [{}])[0]).get("commertialOffer") or {}
-                disp += bool(of.get("AvailableQuantity"))
-                lp += (of.get("ListPrice") or 0) > (of.get("Price") or 0) + 1
-    return f"{nome}: {paginas} páginas, {skus} SKUs ({disp} c/ estoque, {eans} c/ EAN, {lp} com 'de' maior), {erros} erros, {time.time()-t0:.0f}s"
-
-tot = {}
-for nome, (host, cat) in LOJAS.items():
-    res, st = total(host, cat)
-    print(nome, "resources:", res, st)
-    tot[nome] = int(res.split("/")[-1]) if res and "/" in res else 500
 t0 = time.time()
+sys.argv = ["radar.py", "simulacao"]
+r.main()
+print(f"\nradar completo em {time.time()-t0:.0f}s")
+
+lojas = [l for l in r.CFG["lojas"] if l.get("ativa", True)]
 with ThreadPoolExecutor(5) as ex:
-    for linha in ex.map(lambda kv: le_tudo(kv[0], *kv[1], tot[kv[0]]), LOJAS.items()):
-        print(linha)
-print(f"tudo em {time.time()-t0:.0f}s")
-d = c.baixa("https://www.drogariasaopaulo.com.br/api/catalog_system/pub/products/search?ft=azzaro%20wanted", json_=True)
-it = d[0]["items"][0]; of = it["sellers"][0]["commertialOffer"]
-print("exemplo:", d[0].get("productName"), d[0].get("link"), it.get("ean"), it.get("itemId"), of.get("Price"), of.get("ListPrice"), of.get("PriceWithoutDiscount"))
+    res = list(ex.map(r.le_loja, lojas))
+itens = [i for _, its, _, _ in res for i in its]
+por_ean = {}
+for it in itens:
+    if it.ean:
+        por_ean.setdefault(it.ean, set()).add(it.grupo)
+print("EANs:", len(por_ean), "| em 2+ empresas:", sum(len(g) >= 2 for g in por_ean.values()),
+      "| nas 3:", sum(len(g) >= 3 for g in por_ean.values()))
+hoje = __import__("datetime").date.today().toordinal()
+for b, cpct in ((30, 70), (40, 80), (50, 85)):
+    r.CFG["abaixo_outras_lojas_pct"] = b; r.CFG["desconto_declarado_pct"] = cpct
+    ach, _ = r.candidatos(itens, {}, hoje)
+    nb = sum(any("outras lojas" in m for m in x.motivos) for x in ach)
+    nc = sum(any('"de"' in m for m in x.motivos) for x in ach)
+    print(f"régua outras lojas {b}% / 'de' {cpct}%: {len(ach)} candidatos ({nb} por outras lojas, {nc} por preço de)")
+    for x in ach[:8]:
+        print(f"    {x.item.loja}: {x.item.preco} | {x.motivos} | {x.item.nome[:60]} | {x.outras[:3]}")
+import json
+tam = len(json.dumps({i.chave: [[hoje - k, i.preco] for k in range(30)] for i in itens}, separators=(",", ":")))
+print(f"histórico de 30 dias ocuparia ~{tam/1e6:.1f} MB (sem compressão)")
