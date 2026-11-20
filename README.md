@@ -160,6 +160,32 @@ chegando só no seu chat com o bot.
 3. Crie o secret `TELEGRAM_CHAT_ID_CACADOR` com esse número, com o sinal de menos.
 4. Rode `teste` para ver uma oferta chegar no grupo. Para voltar ao chat privado, é só apagar o secret.
 
+### Radar de preços nas lojas (`radar.py`)
+
+O caçador lê sites de promoção; o radar lê **direto o catálogo das lojas**, para pegar o erro antes de virar
+post. Começou com perfumes em cinco lojas VTEX (Época, Drogaria São Paulo, Drogarias Pacheco, Extrafarma e
+Pague Menos): cerca de 13 mil itens com estoque, lidos em uns 30 segundos.
+
+- Roda dentro do workflow do caçador, no máximo a cada `intervalo_minutos` (30), e guarda o **histórico de
+  preço de cada item** (menor preço com estoque por dia, 30 dias) no cache do GitHub, um mini-Keepa.
+- Vira candidato quando, no mesmo item (mesmo código de barras):
+  - o preço cai `queda_minima_pct` (40%) abaixo do normal da própria loja, bate a mínima dela e fica mais
+    barato que as outras lojas (queda de campanha em todo mundo não conta);
+  - fica `abaixo_outras_lojas_pct` (40%) abaixo das outras empresas, desde que tenha caído na própria loja;
+  - fica `desconto_declarado_pct` (80%) abaixo do preço "de" da própria loja.
+- Lojas da mesma empresa (`grupo`: Drogaria SP + Pacheco, Pague Menos + Extrafarma) não servem de comparação
+  entre si, e o mesmo item caído nas duas vira um candidato só.
+- O candidato vai para a mesma IA do caçador, com o histórico e os preços das outras lojas na pergunta (com
+  contraprova se parecer bug). Só vai para o grupo com a mesma nota mínima; a mensagem traz "📡 Radar".
+- Limites próprios: `max_analises_por_rodada` (2) e `max_analises_por_dia` (10). O mesmo item só é analisado
+  de novo se cair mais 10% ou depois de `nao_repetir_dias` (3).
+- A primeira leitura só monta o histórico (o que já estiver barato nela fica marcado como visto) e manda
+  "📡 Radar de preços ligado" só para você. Loja que falhar 3 leituras seguidas gera um aviso só para você.
+- No `teste` do caçador, o radar também lê na hora e manda só para você a análise da maior queda do momento.
+
+Para incluir outra loja VTEX, acrescente em `lojas` o endereço e o código da categoria (aparece em
+`categoriesIds` na API `/api/catalog_system/pub/products/search?ft=nome do produto`).
+
 ## Disparo (cron-job.org)
 
 O agendamento do próprio GitHub atrasa e pula muitos horários (às vezes roda uma vez a cada várias horas),

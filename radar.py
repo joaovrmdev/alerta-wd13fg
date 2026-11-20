@@ -161,9 +161,13 @@ def avalia(it: Item, historico: dict, por_ean: dict, hoje: int) -> Candidato | N
     entradas = historico.get(it.chave) or []
     ref, minimo = referencia(entradas, hoje)
     outras = [(loja, p) for loja, grupo, p in por_ean.get(it.ean, []) if grupo != it.grupo] if it.ean else []
-    grupos = {g for _, g, _ in por_ean.get(it.ean, []) if g != it.grupo} if it.ean else set()
-    med_outras = statistics.median(p for _, p in outras) if outras else None
-    min_outras = min(p for _, p in outras) if outras else None
+    por_grupo: dict[str, float] = {}  # um preço por empresa (o menor), para a mediana não pesar quem tem 2 lojas
+    for _, g, p in (por_ean.get(it.ean, []) if it.ean else []):
+        if g != it.grupo:
+            por_grupo[g] = min(p, por_grupo.get(g, p))
+    grupos = set(por_grupo)
+    med_outras = statistics.median(por_grupo.values()) if por_grupo else None
+    min_outras = min(por_grupo.values()) if por_grupo else None
     queda_propria = ref is None or it.preco <= ref * 0.85        # caiu em relação à própria loja (ou sem histórico)
     abaixo_de_todas = min_outras is None or it.preco <= min_outras * 0.9
 
@@ -389,5 +393,25 @@ def main() -> int:
     return 0
 
 
+def falhou(erro: Exception) -> None:
+    """Erro inesperado: registra a tentativa (para não reler as lojas a cada 5 minutos) e avisa você 1x por dia."""
+    import traceback
+    traceback.print_exc()
+    if (sys.argv[1:2] or ["verificar"])[0] == "simulacao":
+        return
+    agora = datetime.now(c.BRT)
+    estado = carrega_estado()
+    estado["ultima_leitura"] = agora.isoformat()
+    if estado.get("aviso_erro") != agora.date().isoformat():
+        estado["aviso_erro"] = agora.date().isoformat()
+        c.envia("<b>⚠️ Radar de preços deu erro</b>\n" + c.esc(f"{type(erro).__name__}: {str(erro)[:200]}"),
+                so_para_mim=True)
+    salva_estado(estado, agora)
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except Exception as e:  # noqa: BLE001
+        falhou(e)
+        sys.exit(1)

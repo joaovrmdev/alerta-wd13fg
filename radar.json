@@ -19,6 +19,6 @@
   "preco_de_minimo": 150,
 
   "max_analises_por_rodada": 2,
-  "max_analises_por_dia": 15,
+  "max_analises_por_dia": 10,
   "nao_repetir_dias": 3
 }
