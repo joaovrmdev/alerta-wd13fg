@@ -753,6 +753,96 @@ def salva_estado(estado: dict) -> None:
     ARQ_ESTADO.write_text(json.dumps(estado, ensure_ascii=False, indent=1), encoding="utf-8")
 
 
+# ------------------------------------------------------------------- cupons (Promobit)
+CUPOM_SLUG = {  # nome da loja (normalizado) -> página de cupons no Promobit
+    "epoca cosmeticos": "epoca-cosmeticos", "drogarias pacheco": "drogarias-pacheco",
+    "drogaria pacheco": "drogarias-pacheco", "extrafarma": "extrafarma", "americanas": "americanas",
+    "webcontinental": "webcontinental", "mercado livre": "mercado-livre", "amazon": "amazon", "sephora": "sephora",
+    "beleza na web": "beleza-na-web", "drogasil": "drogasil", "droga raia": "droga-raia",
+}
+RESTRICAO = re.compile(r"(?i)selecionad|participante|marca|linha |categoria|kit|preservativ|primeira compra|"
+                       r"1ª compra|app|frete|mimo|brinde|campanha")
+_cache_cupons: dict[str, list[dict]] = {}
+
+
+def cupons_da_loja(slug: str, dias: int = 45) -> list[dict]:
+    """Cupons ativos de uma loja no Promobit (só os aprovados e publicados/verificados há até `dias`)."""
+    if slug in _cache_cupons:
+        return _cache_cupons[slug]
+    texto, _ = baixa(f"https://www.promobit.com.br/cupons/loja/{slug}/")
+    m = re.search(r'<script id="__NEXT_DATA__"[^>]*>(.*?)</script>', texto, re.S)
+    achados: list[dict] = []
+
+    def anda(x, prof=0):
+        if prof > 12:
+            return
+        if isinstance(x, dict):
+            if x.get("couponId") and x.get("couponStatusName", "APPROVED") == "APPROVED":
+                achados.append(x)
+            for v in x.values():
+                anda(v, prof + 1)
+        elif isinstance(x, list):
+            for v in x[:200]:
+                anda(v, prof + 1)
+
+    if m:
+        anda(json.loads(m.group(1)))
+    limite = datetime.now(BRT) - timedelta(days=dias)
+
+    def data(c):
+        for k in ("couponVerified", "couponPublished"):
+            try:
+                return datetime.fromisoformat(re.sub(r"([+-]\d{2})(\d{2})$", r"\1:\2", c.get(k) or ""))
+            except ValueError:
+                continue
+        return None
+
+    vistos, cupons = set(), []
+    for c in sorted(achados, key=lambda c: data(c) or limite, reverse=True):
+        d, codigo = data(c), (c.get("couponCode") or "").strip()
+        if not codigo or codigo in vistos or (d and d < limite):
+            continue
+        vistos.add(codigo)
+        texto_cupom = f"{c.get('couponTitle') or ''} {limpa(c.get('couponInstructions'))}"
+        pct = re.search(r"(\d{1,2})\s*%", c.get("couponDiscountShort") or c.get("couponDiscount") or "")
+        minimo = re.search(r"(?i)acima de R\$\s*([\d.]+(?:,\d{2})?)", texto_cupom)
+        cupons.append({"codigo": codigo, "desconto": c.get("couponDiscountShort") or c.get("couponDiscount") or "",
+                       "detalhe": limpa(c.get("couponInstructions"))[:90] or str(c.get("couponTitle") or "")[:90],
+                       "pct": int(pct.group(1)) if pct else None,
+                       "minimo": para_numero(minimo.group(1)) if minimo else None,
+                       "geral": not RESTRICAO.search(texto_cupom)})
+    _cache_cupons[slug] = cupons
+    return cupons
+
+
+def limpa(t) -> str:
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", str(t or ""))).split())
+
+
+def notas_cupom(o: Oferta | None, maximo: int = 3) -> list[str]:
+    """Para a melhor oferta: cupons ativos da loja e o possível preço com o cupom geral (conferir no carrinho)."""
+    if not (o and CFG.get("mostrar_cupons")):
+        return []
+    fonte = next((f for f in CFG["fontes"] if f["nome"] == o.fonte), {})
+    slug = fonte.get("cupons_promobit") or CUPOM_SLUG.get(normaliza(o.loja).replace("(no pix)", "").strip())
+    if not slug:
+        return []
+    try:
+        cupons = cupons_da_loja(slug)
+    except Exception as e:  # noqa: BLE001  (cupom é extra; não atrapalha o alerta)
+        print(f"[cupons] {slug}: {str(e)[:80]}")
+        return []
+    if not cupons:
+        return []
+    linhas = [f"🎟️ Cupons ativos na {o.loja} (Promobit; confira no carrinho se valem para o produto):"]
+    for c in cupons[:maximo]:
+        linha = f"• {c['codigo']} — {c['desconto']}: {c['detalhe']}"
+        if c["geral"] and c["pct"] and (not c["minimo"] or c["minimo"] <= o.preco):
+            linha += f" → ~{brl(round(o.preco * (1 - c['pct'] / 100), 2))}"
+        linhas.append(linha)
+    return linhas
+
+
 def linha_referencia() -> list[str]:
     if not REFERENCIA.get("minima"):
         return []
@@ -868,14 +958,16 @@ def main() -> int:
     rodape = [f"Páginas lidas: {len(fontes) - len(falhas)}/{len(fontes)}"]
     hoje = agora.date().isoformat()
 
+    cupons = notas_cupom(melhor) if (modo == "teste" or motivo or comecando) else []
     if modo == "teste":
-        envia(f"🧪 Teste do alerta — {CFG['produto']}", ofertas, notas + linha_referencia() + rodape + falhas)
+        envia(f"🧪 Teste do alerta — {CFG['produto']}", ofertas,
+              notas + cupons + linha_referencia() + rodape + falhas)
     elif motivo:
-        envia(motivo, ofertas, notas + rodape)
+        envia(motivo, ofertas, notas + cupons + linha_referencia() + rodape)
     elif comecando:
         alvo = [f"Alvo: {brl(CFG['preco_alvo'])}"] if CFG.get("preco_alvo") else []
         alvo += linha_referencia()
-        envia(f"✅ Comecei a acompanhar — {CFG['produto']}", ofertas, alvo + rodape + falhas)
+        envia(f"✅ Comecei a acompanhar — {CFG['produto']}", ofertas, alvo + cupons + rodape + falhas)
     elif (CFG.get("resumo_diario_hora") is not None and agora.hour >= CFG["resumo_diario_hora"]
           and estado.get("ultimo_resumo") != hoje):
         recorde = estado.get("menor_ja_visto")
