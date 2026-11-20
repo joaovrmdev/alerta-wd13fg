@@ -8,12 +8,10 @@ jobs:
   sonda:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
       - run: pip install -r requirements.txt
-      - run: python sonda_consist.py
+      - run: python sonda_azzaro.py
