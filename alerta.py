@@ -308,6 +308,8 @@ def condicoes(obj, prof: int = 0) -> list[dict]:
                         "sem_juros": True if melhor else None, "total": melhor[2] if melhor else None})
     elif base and isinstance(inst, dict):  # Buscapé / Zoom
         n, valor = _num(inst, "amount_months", "months", "count", "quantity"), _num(inst, "price", "value")
+        if n and n >= 2 and valor and valor >= min(base) * 0.9:  # algumas lojas mandam o total no lugar da parcela
+            valor = round(valor / n, 2)
         if n and n >= 2 and valor:
             juros = inst.get("interest", inst.get("interestRate"))
             achadas.append({"base": min(base), "pix": None, "parcelas": int(n), "parcela": valor,
