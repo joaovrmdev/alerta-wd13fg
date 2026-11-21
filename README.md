@@ -66,6 +66,9 @@ O mesmo robô também acompanha (os eletrodomésticos são 127V):
 | `config-panela-pe38.json` | panela de pressão elétrica Mondial Master Cooker 5L (PE-38) | R$ 299 | não |
 | `config-panela-pcc20.json` | panela de pressão elétrica Electrolux 6L (PCC20) | R$ 399 | não |
 | `config-azzaro-wanted.json` | perfume Azzaro Wanted EDT 100 ml | mínima histórica | não |
+| `config-dreame-h60gt.json` | lavadora de piso Dreame H60 GT (127V) | R$ 2.000 | não |
+| `config-dreame-h12pro.json` | lavadora de piso Dreame H12 Pro (qualquer versão, 127V) | R$ 1.800 | não |
+| `config-electrolux-emc2500.json` | lavadora de piso Electrolux MultiClean (EMC2500, bivolt) | R$ 1.600 | não |
 
 Cada produto tem o seu arquivo e o seu próprio histórico em `estado/`. O workflow roda `config.json` e todos
 os `config-*.json`, então para acompanhar mais um produto basta copiar um desses arquivos e ajustar. Na
