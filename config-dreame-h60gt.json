@@ -1,0 +1,51 @@
+{
+  "produto": "Lavadora de piso Dreame H60 GT (127V)",
+  "palavras_chave": [
+    "H60 GT"
+  ],
+  "cores_aceitas": [],
+  "preco_alvo": 2000,
+  "voltagem": "127V",
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 24,
+  "resumo_diario_hora": null,
+  "faixa_de_preco_valida": [
+    1200,
+    6000
+  ],
+  "excluir_se_tiver": [
+    "compativel",
+    "reposicao",
+    "refil",
+    "acessorio",
+    "solucao de limpeza",
+    "detergente",
+    "peca",
+    "usado",
+    "usada",
+    "vitrine",
+    "seminov",
+    "recondicionad",
+    "mostruario",
+    "avariad"
+  ],
+  "fontes": [
+    {
+      "nome": "Amazon (busca)",
+      "url": "https://www.amazon.com.br/s?k=dreame+h60+gt"
+    },
+    {
+      "nome": "Buscapé (busca)",
+      "url": "https://www.buscape.com.br/busca/dreame%20h60%20gt"
+    },
+    {
+      "nome": "Zoom (busca)",
+      "url": "https://www.zoom.com.br/busca/dreame%20h60%20gt"
+    },
+    {
+      "nome": "Mercado Livre",
+      "url": "https://lista.mercadolivre.com.br/dreame-h60-gt",
+      "ativa": false
+    }
+  ]
+}
