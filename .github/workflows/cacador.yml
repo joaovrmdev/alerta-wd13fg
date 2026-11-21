@@ -24,7 +24,7 @@ concurrency:
 jobs:
   cacador:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     env:
       MODO: ${{ github.event_name == 'pull_request' && 'simulacao' || inputs.modo || 'verificar' }}
       TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -58,3 +58,26 @@ jobs:
         with:
           path: estado-cacador
           key: cacador-${{ github.run_id }}-${{ github.run_attempt }}
+
+      # Radar de preços (radar.py): lê o catálogo das lojas direto, no máximo a cada 30 minutos
+      # (o intervalo fica no radar.json). Tem histórico próprio, guardado só quando a leitura acontece.
+      - name: Recupera o histórico do radar
+        if: ${{ !cancelled() && inputs.modo != 'grupo' }}
+        uses: actions/cache/restore@v4
+        with:
+          path: estado-radar
+          key: radar-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: radar-
+
+      - name: Radar de preços nas lojas
+        id: radar
+        if: ${{ !cancelled() && inputs.modo != 'grupo' }}
+        continue-on-error: true
+        run: python radar.py "$MODO"
+
+      - name: Guarda o histórico do radar
+        if: ${{ !cancelled() && github.event_name != 'pull_request' && steps.radar.outputs.rodou == '1' }}
+        uses: actions/cache/save@v4
+        with:
+          path: estado-radar
+          key: radar-${{ github.run_id }}-${{ github.run_attempt }}
