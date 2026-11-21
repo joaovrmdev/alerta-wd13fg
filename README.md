@@ -69,6 +69,8 @@ O mesmo robô também acompanha (os eletrodomésticos são 127V):
 | `config-dreame-h60gt.json` | lavadora de piso Dreame H60 GT (127V) | R$ 2.000 | não |
 | `config-dreame-h12pro.json` | lavadora de piso Dreame H12 Pro (qualquer versão, 127V) | R$ 1.800 | não |
 | `config-electrolux-emc2500.json` | lavadora de piso Electrolux MultiClean (EMC2500, bivolt) | R$ 1.600 | não |
+| `config-iphone-17-pro-max.json` | iPhone 17 Pro Max 256 GB (avisa também no grupo) | R$ 8.000 | não |
+| `config-iphone-18-pro-max.json` | iPhone 18 Pro Max 256 GB (avisa também no grupo) | R$ 9.900 | não |
 
 Cada produto tem o seu arquivo e o seu próprio histórico em `estado/`. O workflow roda `config.json` e todos
 os `config-*.json`, então para acompanhar mais um produto basta copiar um desses arquivos e ajustar. Na
@@ -84,6 +86,7 @@ Campos extras que um produto pode usar:
 | `alvo_minima_historica` | avisa quando o menor preço bater a mínima histórica do produto (vem de uma fonte `promobit_produto`) |
 | `mostrar_cupons` | nas mensagens, lista os cupons ativos (Promobit) da loja da melhor oferta e estima o preço com o cupom quando ele parece valer para o site todo; sempre "confira no carrinho" |
 | `cupons_promobit` (em uma fonte) | página de cupons da loja no Promobit, quando o nome não for reconhecido (ex.: `"epoca-cosmeticos"`) |
+| `no_grupo` | quando o preço chega no alvo, bate a mínima histórica ou cai de repente, o aviso vai também para o grupo do caçador (`TELEGRAM_CHAT_ID_CACADOR`), com as 3 melhores ofertas. "Comecei a acompanhar", resumo diário e avisos técnicos continuam só no privado |
 | `"tipo": "promobit_produto"` (em uma fonte) | página do produto no Promobit: traz o menor e o maior preço já postados e usa o post mais recente como preço atual se tiver até `max_horas` (padrão 24) |
 
 Nas lojas VTEX (Samsung, Fast Shop, Época, drogarias), cada tamanho/voltagem (SKU) vira uma oferta separada, com
