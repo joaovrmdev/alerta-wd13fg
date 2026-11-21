@@ -1,0 +1,72 @@
+{
+  "produto": "iPhone 18 Pro Max 256GB",
+  "palavras_chave": [
+    "iPhone 18 Pro Max"
+  ],
+  "exigir_tambem": [
+    "256"
+  ],
+  "cores_aceitas": [],
+  "preco_alvo": 9900,
+  "voltagem": null,
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 72,
+  "resumo_diario_hora": null,
+  "mostrar_cupons": true,
+  "no_grupo": true,
+  "faixa_de_preco_valida": [
+    7500,
+    18000
+  ],
+  "excluir_se_tiver": [
+    "512",
+    "1tb",
+    "1 tb",
+    "2tb",
+    "2 tb",
+    "capa",
+    "case",
+    "capinha",
+    "pelicula",
+    "vidro",
+    "carregador",
+    "cabo",
+    "lacrado",
+    "pro e pro max",
+    "pro ou pro max",
+    "pro/pro max",
+    "seminov",
+    "usado",
+    "usada",
+    "vitrine",
+    "recondicionad",
+    "mostruario",
+    "avariad",
+    "bom estado",
+    "excelente estado",
+    "trocafone"
+  ],
+  "fontes": [
+    {
+      "nome": "Amazon (busca)",
+      "url": "https://www.amazon.com.br/s?k=iphone+18+pro+max+256gb"
+    },
+    {
+      "nome": "Buscapé (busca)",
+      "url": "https://www.buscape.com.br/busca/iphone%2018%20pro%20max%20256gb"
+    },
+    {
+      "nome": "Zoom (busca)",
+      "url": "https://www.zoom.com.br/busca/iphone%2018%20pro%20max%20256gb"
+    },
+    {
+      "nome": "Fast Shop",
+      "url": "https://site.fastshop.com.br/api/catalog_system/pub/products/search?ft=iphone%2018%20pro%20max"
+    },
+    {
+      "nome": "Mercado Livre",
+      "url": "https://lista.mercadolivre.com.br/iphone-18-pro-max-256gb",
+      "ativa": false
+    }
+  ]
+}
