@@ -957,6 +957,11 @@ def main() -> int:
         estado["falhas_seguidas"] = estado.get("falhas_seguidas", 0) + 1
 
     rodape = [f"Páginas lidas: {len(fontes) - len(falhas)}/{len(fontes)}"]
+    # leu páginas mas nada passou no filtro: não é bloqueio, é que não há anúncio do jeito pedido
+    leu_sem_anuncio = not ofertas and len(falhas) < len(fontes)
+    if leu_sem_anuncio:
+        rodape.append("As páginas abriram, mas nenhum anúncio bateu com o modelo, a voltagem "
+                      f"({CFG.get('voltagem') or 'qualquer'}) e a faixa de preço.")
     hoje = agora.date().isoformat()
 
     cupons = notas_cupom(melhor) if (modo == "teste" or motivo or comecando) else []
@@ -978,8 +983,9 @@ def main() -> int:
               + linha_referencia() + rodape + falhas)
         estado["ultimo_resumo"] = hoje
     elif estado["falhas_seguidas"] == 3:
-        envia("⚠️ O alerta não conseguiu ler nenhuma loja nas últimas 3 verificações",
-              [], falhas)
+        problema = "nenhum anúncio do jeito pedido" if leu_sem_anuncio else "não consegui ler nenhuma loja"
+        envia(f"⚠️ {CFG['produto']}: {problema} nas últimas 3 verificações",
+              [], rodape + falhas)
     else:
         print("[sem aviso] preço acima do alvo, sem queda brusca, e o resumo de hoje já foi enviado")
 
