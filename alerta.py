@@ -699,6 +699,28 @@ def linha_parcelado(o: Oferta) -> str:
     return partes
 
 
+def envia_grupo(cabecalho: str, ofertas: list[Oferta], notas: list[str]) -> None:
+    """Promoção boa de um produto com "no_grupo": também vai para o grupo do caçador (só o aviso da oferta;
+    'comecei a acompanhar', resumo e avisos técnicos continuam só no privado)."""
+    token, grupo = os.getenv("TELEGRAM_TOKEN"), os.getenv("TELEGRAM_CHAT_ID_CACADOR")
+    cabecalho = cabecalho.replace("no seu preço-alvo", "no preço-alvo")
+    if SIMULAR or not (token and grupo):
+        if SIMULAR:
+            print("\n[simulação] no grupo, a mensagem seria:\n")
+            print(monta_mensagem(cabecalho, ofertas, notas, "whatsapp"))
+        else:
+            print("[grupo] sem TELEGRAM_CHAT_ID_CACADOR: o aviso ficou só no privado")
+        return
+    try:
+        r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", timeout=20, json={
+            "chat_id": grupo, "parse_mode": "HTML", "disable_web_page_preview": True,
+            "text": monta_mensagem(cabecalho, ofertas, notas, "telegram")})
+        r.raise_for_status()
+        print(f"[enviado] grupo do Telegram: {cabecalho}")
+    except Exception as e:  # noqa: BLE001
+        print(f"[erro] grupo do Telegram: {e} {getattr(e, 'response', None) and e.response.text}")
+
+
 def envia(cabecalho: str, ofertas: list[Oferta], notas: list[str]) -> list[str]:
     if SIMULAR:
         print("\n[simulação] a mensagem seria:\n")
@@ -957,6 +979,11 @@ def main() -> int:
         estado["falhas_seguidas"] = estado.get("falhas_seguidas", 0) + 1
 
     rodape = [f"Páginas lidas: {len(fontes) - len(falhas)}/{len(fontes)}"]
+    # leu páginas mas nada passou no filtro: não é bloqueio, é que não há anúncio do jeito pedido
+    leu_sem_anuncio = not ofertas and len(falhas) < len(fontes)
+    if leu_sem_anuncio:
+        rodape.append("As páginas abriram, mas nenhum anúncio bateu com o modelo, a voltagem "
+                      f"({CFG.get('voltagem') or 'qualquer'}) e a faixa de preço.")
     hoje = agora.date().isoformat()
 
     cupons = notas_cupom(melhor) if (modo == "teste" or motivo or comecando) else []
@@ -965,6 +992,8 @@ def main() -> int:
               notas + cupons + linha_referencia() + rodape + falhas)
     elif motivo:
         envia(motivo, ofertas, notas + cupons + linha_referencia() + rodape)
+        if CFG.get("no_grupo"):
+            envia_grupo(motivo, ofertas[:3], notas + cupons + linha_referencia())
     elif comecando:
         alvo = [f"Alvo: {brl(CFG['preco_alvo'])}"] if CFG.get("preco_alvo") else []
         alvo += linha_referencia()
@@ -978,8 +1007,9 @@ def main() -> int:
               + linha_referencia() + rodape + falhas)
         estado["ultimo_resumo"] = hoje
     elif estado["falhas_seguidas"] == 3:
-        envia("⚠️ O alerta não conseguiu ler nenhuma loja nas últimas 3 verificações",
-              [], falhas)
+        problema = "nenhum anúncio do jeito pedido" if leu_sem_anuncio else "não consegui ler nenhuma loja"
+        envia(f"⚠️ {CFG['produto']}: {problema} nas últimas 3 verificações",
+              [], rodape + falhas)
     else:
         print("[sem aviso] preço acima do alvo, sem queda brusca, e o resumo de hoje já foi enviado")
 

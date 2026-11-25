@@ -1,0 +1,56 @@
+{
+  "produto": "Lavadora de piso Electrolux MultiClean (EMC2500)",
+  "palavras_chave": [
+    "EMC2500"
+  ],
+  "cores_aceitas": [],
+  "preco_alvo": 1600,
+  "voltagem": "127V",
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 24,
+  "resumo_diario_hora": null,
+  "faixa_de_preco_valida": [
+    900,
+    5000
+  ],
+  "excluir_se_tiver": [
+    "compativel",
+    "reposicao",
+    "refil",
+    "acessorio",
+    "solucao de limpeza",
+    "detergente",
+    "peca",
+    "usado",
+    "usada",
+    "vitrine",
+    "seminov",
+    "recondicionad",
+    "mostruario",
+    "avariad",
+    "escova rotativa para",
+    "filtro hepa para"
+  ],
+  "fontes": [
+    {
+      "nome": "Loja Electrolux",
+      "url": "https://loja.electrolux.com.br/api/catalog_system/pub/products/search?ft=emc2500"
+    },
+    {
+      "nome": "Fast Shop",
+      "url": "https://site.fastshop.com.br/api/catalog_system/pub/products/search?ft=emc2500"
+    },
+    {
+      "nome": "Amazon (busca)",
+      "url": "https://www.amazon.com.br/s?k=electrolux+emc2500"
+    },
+    {
+      "nome": "Buscapé (busca)",
+      "url": "https://www.buscape.com.br/busca/emc2500"
+    },
+    {
+      "nome": "Zoom (busca)",
+      "url": "https://www.zoom.com.br/busca/emc2500"
+    }
+  ]
+}
