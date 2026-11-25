@@ -445,6 +445,18 @@ def blocos_json(texto: str):
                 pass
 
 
+def conta_produtos(obj, prof: int = 0) -> int:
+    """Quantos itens com nome e preço a página traz nos dados estruturados (de qualquer produto)."""
+    if prof > 40:
+        return 0
+    if isinstance(obj, dict):
+        n = 1 if nome_de(obj) and precos_de(obj) else 0
+        return n + sum(conta_produtos(v, prof + 1) for v in obj.values() if isinstance(v, (dict, list)))
+    if isinstance(obj, list):
+        return sum(conta_produtos(v, prof + 1) for v in obj if isinstance(v, (dict, list)))
+    return 0
+
+
 def varre_texto(texto: str, fonte: dict) -> list[Oferta]:
     """Plano B quando a página não tem dados estruturados: preço logo após o nome."""
     t = html.unescape(texto).replace('\\"', '"').replace("\\u002F", "/")
@@ -455,10 +467,15 @@ def varre_texto(texto: str, fonte: dict) -> list[Oferta]:
         r'"(?:price|bestPrice|salePrice|lowPrice|spotPrice|priceValue|priceAmount)"\s*:\s*"?(\d[\d.,]*)'
         r'|"current_price"\s*:\s*\{\s*"value"\s*:\s*(\d+(?:\.\d+)?)'
         r"|R\$\s*(\d{1,3}(?:\.\d{3})+(?:\s*,\s*\d{2})?)", re.I)
+    eco = re.compile(r"(buscou|busca por|buscar por|resultados? (?:para|de)|pesquis|procurou|menor pre[cç]o)", re.I)
     ofertas = []
     for m in list(padrao.finditer(t))[:30]:
         trecho = t[max(0, m.start() - 150): m.end() + 150]
         if excluido(trecho) or not cor_ok(trecho):
+            continue
+        # "Você buscou Dreame h60 gt ... R$ 1.362,63": é a página repetindo o que foi buscado, e o preço
+        # seguinte é do primeiro resultado (que pode ser outro produto)
+        if eco.search(t[max(0, m.start() - 40): m.start()]) or eco.search(t[m.end(): m.end() + 30]):
             continue
         fim = m.end() + 1200
         prox = proximo_produto.search(t, m.end() + 20, fim)
@@ -611,10 +628,14 @@ def consulta_fonte(fonte: dict) -> list[Oferta]:
             if not bate_modelo(texto):
                 raise RuntimeError("a página não menciona o modelo (busca vazia ou layout mudou)")
             return []
+    listados = 0
     if not ofertas:
         for bloco in blocos_json(texto):
+            listados += conta_produtos(bloco)
             varre(bloco, fonte, ofertas)
-    if not ofertas:
+    # o plano B (preço no texto) só vale para página sem dados estruturados; se a página listou produtos e
+    # nenhum é o modelo (ex.: a busca do Zoom devolve computadores "GT-H61"), não há oferta
+    if not ofertas and listados < 3:
         ofertas = varre_texto(texto, fonte)
     if DEPURAR and not ofertas:
         diagnostico(texto, url_final)
@@ -939,6 +960,12 @@ def main() -> int:
     comecando = estado.get("filtro") != filtro  # produto novo (ou filtro mudou): avisa uma vez
     if comecando:
         estado = {"filtro": filtro}
+    elif CFG.get("limpar_historico") and estado.get("historico_limpo") != CFG["limpar_historico"]:
+        # histórico contaminado (ex.: preço errado lido de outra página): recomeça sem avisar de novo
+        print(f"[estado] histórico limpo ({CFG['limpar_historico']})")
+        estado = {"filtro": filtro}
+    if CFG.get("limpar_historico"):
+        estado["historico_limpo"] = CFG["limpar_historico"]
 
     ofertas: list[Oferta] = []
     falhas: list[str] = []
@@ -965,7 +992,10 @@ def main() -> int:
 
     ofertas = sem_repetidas(ofertas)
     melhor = ofertas[0] if ofertas else None
-    motivo, notas = decide(estado, melhor, agora)
+    # preço "estimado" (tirado do texto da página) aparece nos testes e resumos com ⚠️, mas não dispara aviso
+    # nem entra no histórico: já deu falso positivo (busca do Zoom repetindo o termo buscado)
+    reais = [o for o in ofertas if not o.estimado]
+    motivo, notas = decide(estado, reais[0] if reais else None, agora)
     if melhor:
         jeito = f" (parcelado; à vista {brl(melhor.preco)})" if melhor.parcelado_menor else \
             (f" {melhor.forma}" if melhor.forma else "")
@@ -986,14 +1016,14 @@ def main() -> int:
                       f"({CFG.get('voltagem') or 'qualquer'}) e a faixa de preço.")
     hoje = agora.date().isoformat()
 
-    cupons = notas_cupom(melhor) if (modo == "teste" or motivo or comecando) else []
+    cupons = notas_cupom(reais[0] if motivo else melhor) if (modo == "teste" or motivo or comecando) else []
     if modo == "teste":
         envia(f"🧪 Teste do alerta — {CFG['produto']}", ofertas,
               notas + cupons + linha_referencia() + rodape + falhas)
     elif motivo:
-        envia(motivo, ofertas, notas + cupons + linha_referencia() + rodape)
+        envia(motivo, reais, notas + cupons + linha_referencia() + rodape)
         if CFG.get("no_grupo"):
-            envia_grupo(motivo, ofertas[:3], notas + cupons + linha_referencia())
+            envia_grupo(motivo, reais[:3], notas + cupons + linha_referencia())
     elif comecando:
         alvo = [f"Alvo: {brl(CFG['preco_alvo'])}"] if CFG.get("preco_alvo") else []
         alvo += linha_referencia()
