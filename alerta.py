@@ -711,14 +711,34 @@ def envia_grupo(cabecalho: str, ofertas: list[Oferta], notas: list[str]) -> None
         else:
             print("[grupo] sem TELEGRAM_CHAT_ID_CACADOR: o aviso ficou só no privado")
         return
+    corpo = {"chat_id": grupo, "parse_mode": "HTML", "disable_web_page_preview": True,
+             "text": monta_mensagem(cabecalho, ofertas, notas, "telegram")}
     try:
-        r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", timeout=20, json={
-            "chat_id": grupo, "parse_mode": "HTML", "disable_web_page_preview": True,
-            "text": monta_mensagem(cabecalho, ofertas, notas, "telegram")})
+        for _ in range(2):
+            r = requests.post(f"https://api.telegram.org/bot{token}/sendMessage", timeout=20, json=corpo)
+            novo_id = (r.json().get("parameters") or {}).get("migrate_to_chat_id") if r.status_code == 400 else None
+            if not novo_id:
+                break
+            # o Telegram troca o ID quando o grupo vira "supergrupo" (ex.: ao mudar permissões); manda para o
+            # novo sem mostrar o número no log, que é público
+            print("[aviso] o grupo mudou de ID (virou supergrupo). Rode o modo 'grupo' do caçador e atualize "
+                  "o secret TELEGRAM_CHAT_ID_CACADOR.")
+            corpo["chat_id"] = novo_id
         r.raise_for_status()
         print(f"[enviado] grupo do Telegram: {cabecalho}")
     except Exception as e:  # noqa: BLE001
-        print(f"[erro] grupo do Telegram: {e} {getattr(e, 'response', None) and e.response.text}")
+        print(f"[erro] grupo do Telegram: {e} {erro_telegram(e)}")
+
+
+def erro_telegram(e: Exception) -> str:
+    """Só a descrição do erro (a resposta completa pode trazer o ID do grupo, e o log é público)."""
+    resposta = getattr(e, "response", None)
+    if resposta is None:
+        return ""
+    try:
+        return resposta.json().get("description", "")
+    except ValueError:
+        return resposta.text[:200]
 
 
 def envia(cabecalho: str, ofertas: list[Oferta], notas: list[str]) -> list[str]:
@@ -736,7 +756,7 @@ def envia(cabecalho: str, ofertas: list[Oferta], notas: list[str]) -> list[str]:
             r.raise_for_status()
             enviados.append("Telegram")
         except Exception as e:  # noqa: BLE001
-            print(f"[erro] Telegram: {e} {getattr(e, 'response', None) and e.response.text}")
+            print(f"[erro] Telegram: {e} {erro_telegram(e)}")
     webhook = os.getenv("DISCORD_WEBHOOK")
     if webhook:
         try:
