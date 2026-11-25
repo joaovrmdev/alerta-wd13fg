@@ -1,0 +1,78 @@
+{
+  "produto": "iPhone 17 Pro Max 256GB",
+  "palavras_chave": [
+    "iPhone 17 Pro Max"
+  ],
+  "exigir_tambem": [
+    "256"
+  ],
+  "cores_aceitas": [],
+  "preco_alvo": 8000,
+  "voltagem": null,
+  "avisar_queda_percentual": 7,
+  "repetir_alerta_horas": 72,
+  "resumo_diario_hora": null,
+  "mostrar_cupons": true,
+  "no_grupo": true,
+  "faixa_de_preco_valida": [
+    6500,
+    16000
+  ],
+  "excluir_se_tiver": [
+    "512",
+    "1tb",
+    "1 tb",
+    "2tb",
+    "2 tb",
+    "capa",
+    "case",
+    "capinha",
+    "pelicula",
+    "vidro",
+    "carregador",
+    "cabo",
+    "lacrado",
+    "pro e pro max",
+    "pro ou pro max",
+    "pro/pro max",
+    "seminov",
+    "usado",
+    "usada",
+    "vitrine",
+    "recondicionad",
+    "mostruario",
+    "avariad",
+    "bom estado",
+    "excelente estado",
+    "trocafone"
+  ],
+  "fontes": [
+    {
+      "nome": "Promobit (histórico e último post)",
+      "tipo": "promobit_produto",
+      "url": "https://www.promobit.com.br/oferta/apple-iphone-17-pro-max-256gb/",
+      "max_horas": 24
+    },
+    {
+      "nome": "Amazon (busca)",
+      "url": "https://www.amazon.com.br/s?k=iphone+17+pro+max+256gb"
+    },
+    {
+      "nome": "Buscapé",
+      "url": "https://www.buscape.com.br/celular/celular-apple-iphone-17-pro-max-256gb"
+    },
+    {
+      "nome": "Zoom",
+      "url": "https://www.zoom.com.br/celular/celular-apple-iphone-17-pro-max-256gb"
+    },
+    {
+      "nome": "Fast Shop",
+      "url": "https://site.fastshop.com.br/api/catalog_system/pub/products/search?ft=iphone%2017%20pro%20max"
+    },
+    {
+      "nome": "Mercado Livre",
+      "url": "https://lista.mercadolivre.com.br/iphone-17-pro-max-256gb",
+      "ativa": false
+    }
+  ]
+}
